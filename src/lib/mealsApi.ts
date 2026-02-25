@@ -131,6 +131,7 @@ export async function planMeal(date: string, slot: MealSlot, meal: { id: string 
     date,
     meal_type: slot,
     meal_id: meal.id,
+    meal_name: meal.name,
   };
 
   if (meal.emoji) {
@@ -144,13 +145,22 @@ export async function planMeal(date: string, slot: MealSlot, meal: { id: string 
     .single();
 
   if (error) throw error;
-  return data;
+
+  return {
+    id: data.id,
+    date: data.date,
+    meal_type: data.meal_type,
+    slot: data.meal_type as MealSlot,
+    saved_meal_id: data.meal_id,
+    meal_name: data.meal_name || meal.name,
+    meal_emoji: data.meal_emoji || meal.emoji || '🍽️',
+  };
 }
 
 export async function getPlannedWeek(startISO: string, endISO: string) {
   const { data, error } = await supabase
     .from('meal_plans')
-    .select('id, date, meal_type, meal_id, meal_emoji, saved_meals:meal_id(id,name,emoji)')
+    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, saved_meals:meal_id(id,name,emoji)')
     .gte('date', startISO)
     .lte('date', endISO)
     .order('date', { ascending: true });
@@ -163,7 +173,7 @@ export async function getPlannedWeek(startISO: string, endISO: string) {
     meal_type: item.meal_type,
     slot: item.meal_type as MealSlot,
     saved_meal_id: item.meal_id,
-    meal_name: item.saved_meals?.name || 'Unknown Meal',
+    meal_name: item.saved_meals?.name || item.meal_name || 'Unknown Meal',
     meal_emoji: item.meal_emoji || item.saved_meals?.emoji || '🍽️',
   }));
 }
@@ -210,7 +220,7 @@ export async function changePlannedMealSlot(date: string, oldSlot: MealSlot, new
 export async function getTodayPlan(todayISO: string) {
   const { data, error } = await supabase
     .from('meal_plans')
-    .select('id, date, meal_type, meal_id, meal_emoji, saved_meals:meal_id(id,name,emoji)')
+    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, saved_meals:meal_id(id,name,emoji)')
     .eq('date', todayISO);
 
   if (error) throw error;
@@ -221,9 +231,50 @@ export async function getTodayPlan(todayISO: string) {
     meal_type: item.meal_type,
     slot: item.meal_type as MealSlot,
     saved_meal_id: item.meal_id,
-    meal_name: item.saved_meals?.name || 'Unknown Meal',
+    meal_name: item.saved_meals?.name || item.meal_name || 'Unknown Meal',
     meal_emoji: item.meal_emoji || item.saved_meals?.emoji || '🍽️',
   }));
+}
+
+// -------- Week Actions --------
+
+export async function copyWeekPlan(sourceStartISO: string, sourceEndISO: string, targetStartISO: string) {
+  const sourcePlan = await getPlannedWeek(sourceStartISO, sourceEndISO);
+  if (sourcePlan.length === 0) throw new Error('No meals to copy from last week');
+
+  const sourceStartMs = new Date(sourceStartISO).getTime();
+  const targetStartMs = new Date(targetStartISO).getTime();
+  const dayMs = 86400000;
+
+  const inserts = sourcePlan.map((item) => {
+    const dayOffset = Math.round((new Date(item.date).getTime() - sourceStartMs) / dayMs);
+    const targetDate = new Date(targetStartMs + dayOffset * dayMs);
+    const targetDateISO = targetDate.toISOString().split('T')[0];
+
+    return {
+      date: targetDateISO,
+      meal_type: item.meal_type,
+      meal_id: item.saved_meal_id || null,
+      meal_name: item.meal_name,
+      meal_emoji: item.meal_emoji,
+    };
+  });
+
+  const { error } = await supabase
+    .from('meal_plans')
+    .upsert(inserts, { onConflict: 'date,meal_type' });
+
+  if (error) throw error;
+}
+
+export async function clearWeekPlan(startISO: string, endISO: string) {
+  const { error } = await supabase
+    .from('meal_plans')
+    .delete()
+    .gte('date', startISO)
+    .lte('date', endISO);
+
+  if (error) throw error;
 }
 
 // -------- Favorites --------

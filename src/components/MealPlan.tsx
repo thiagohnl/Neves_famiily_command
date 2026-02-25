@@ -15,8 +15,8 @@ import { useMealQuest } from '../hooks/useMealQuest';
 import { MealQuestCard } from './MealQuestCard';
 import { EditSavedMealDialog } from './EditSavedMealDialog';
 import { PlannedMealPopover } from './PlannedMealPopover';
-import { updateSavedMeal, deletePlannedMeal, changePlannedMealSlot } from '../lib/mealsApi';
-import { upsertMealPlanSafe } from '../data/mealPlans';
+import { updateSavedMeal, deletePlannedMeal, changePlannedMealSlot, copyWeekPlan, clearWeekPlan } from '../lib/mealsApi';
+import { MealPickerModal } from './MealPickerModal';
 import type { MealType } from '../types/meal-plan';
 
 dayjs.extend(weekOfYear);
@@ -35,6 +35,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
   const [mealTypeFilter, setMealTypeFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner'>('all');
   const [editingMeal, setEditingMeal] = useState<any>(null);
   const [plannedMealPopover, setPlannedMealPopover] = useState<{ date: string; slot: MealSlot; meal: any; position: { top: number; left: number } } | null>(null);
+  const [mealPickerTarget, setMealPickerTarget] = useState<{ date: string; slot: MealSlot; dateLabel: string } | null>(null);
 
   const [newMeal, setNewMeal] = useState({ name: '', emoji: '🍽️', notes: '' });
   const [newFreezerItem, setNewFreezerItem] = useState({ name: '', emoji: '🧊', notes: '', quantity: 1 });
@@ -103,7 +104,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
     }
 
     const date = el.getAttribute('data-date');
-    const slot = el.getAttribute('data-slot') as MealType;
+    const slot = el.getAttribute('data-slot') as MealSlot;
 
     if (!date || !slot) {
       toast.error('Invalid drop target');
@@ -113,12 +114,11 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
     try {
       const { type, id, name, emoji } = JSON.parse(mealData);
 
-      // Build clean payload with only valid columns
-      await upsertMealPlanSafe({
-        date,
-        meal_type: slot,
-        meal_id: (type === 'saved-meal' && id) ? id : null,
-        meal_emoji: emoji || null,
+      // Use hook's planMeal for optimistic UI update
+      await planMeal(date, slot, {
+        id: (type === 'saved-meal' && id) ? id : null,
+        name,
+        emoji: emoji || null,
       });
 
       let challengeCompleted = false;
@@ -132,15 +132,12 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
 
       if (challengeCompleted) {
         setShowConfetti(true);
-        toast.success('🏆 Chef of the Week unlocked!', { duration: 5000 });
+        toast.success('Chef of the Week unlocked!', { duration: 5000 });
         setTimeout(() => setShowConfetti(false), 5000);
       }
 
-      el.classList.add('bg-green-50');
-      setTimeout(() => el.classList.remove('bg-green-50'), 500);
-
       toast.success(`Planned ${name} for ${slot}!`);
-      refetchWeekPlan();
+      await refetchWeekPlan();
     } catch (error: any) {
       console.error('Failed to plan meal:', error);
       toast.error('Failed to plan meal: ' + (error?.message || 'unknown error'));
@@ -235,6 +232,63 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
     } catch (error: any) {
       console.error('Failed to plan meal:', error);
       toast.error('Failed to plan meal.');
+    }
+  };
+
+  const handleMealPickerSelect = async (
+    meal: { id: string | null; name: string; emoji: string | null },
+    type: 'saved-meal' | 'freezer'
+  ) => {
+    if (!mealPickerTarget) return;
+
+    try {
+      await planMeal(mealPickerTarget.date, mealPickerTarget.slot, meal);
+
+      let challengeCompleted = false;
+      if (type === 'freezer' && meal.id) {
+        await adjustQty(meal.id, -1);
+        challengeCompleted = await trackFreezerUse(meal.id);
+      } else if (type === 'saved-meal' && meal.id) {
+        challengeCompleted = await trackMealPlan(meal.id);
+      }
+
+      if (challengeCompleted) {
+        setShowConfetti(true);
+        toast.success('Chef of the Week unlocked!', { duration: 5000 });
+        setTimeout(() => setShowConfetti(false), 5000);
+      }
+
+      toast.success(`Planned ${meal.name} for ${mealPickerTarget.slot}!`);
+      setMealPickerTarget(null);
+      await refetchWeekPlan();
+    } catch (error: any) {
+      console.error('Failed to plan meal:', error);
+      toast.error('Failed to plan meal.');
+    }
+  };
+
+  const handleCopyLastWeek = async () => {
+    const prevWeekStart = currentWeek.subtract(1, 'week');
+    const prevStartISO = prevWeekStart.format('YYYY-MM-DD');
+    const prevEndISO = prevWeekStart.add(6, 'day').format('YYYY-MM-DD');
+    try {
+      await copyWeekPlan(prevStartISO, prevEndISO, weekStart);
+      await refetchWeekPlan();
+      toast.success("Copied last week's plan!");
+    } catch {
+      toast.error('Failed to copy week.');
+    }
+  };
+
+  const handleClearWeek = async () => {
+    if (!window.confirm('Clear all meals for this week?')) return;
+    try {
+      const weekEndISO = currentWeek.add(6, 'day').format('YYYY-MM-DD');
+      await clearWeekPlan(weekStart, weekEndISO);
+      await refetchWeekPlan();
+      toast.success('Week cleared!');
+    } catch {
+      toast.error('Failed to clear week.');
     }
   };
 
@@ -527,6 +581,23 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           </button>
         </div>
 
+        {isParentMode && (
+          <div className="flex gap-2 mb-1">
+            <button
+              onClick={handleCopyLastWeek}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+            >
+              Copy Last Week
+            </button>
+            <button
+              onClick={handleClearWeek}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-colors"
+            >
+              Clear Week
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-7 sm:grid-cols-7 gap-x-4 gap-y-4">
           {weekDays.map((day) => {
             const dateISO = day.format('YYYY-MM-DD');
@@ -558,6 +629,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                         meal: dayPlan.breakfast,
                         position: { top: rect.bottom + 5, left: rect.left }
                       });
+                    } else if (!dayPlan.breakfast) {
+                      setMealPickerTarget({ date: dateISO, slot: 'breakfast', dateLabel: day.format('ddd, MMM D') });
                     }
                   }}
                 >
@@ -626,6 +699,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                         meal: dayPlan.lunch,
                         position: { top: rect.bottom + 5, left: rect.left }
                       });
+                    } else if (!dayPlan.lunch) {
+                      setMealPickerTarget({ date: dateISO, slot: 'lunch', dateLabel: day.format('ddd, MMM D') });
                     }
                   }}
                 >
@@ -694,6 +769,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                         meal: dayPlan.dinner,
                         position: { top: rect.bottom + 5, left: rect.left }
                       });
+                    } else if (!dayPlan.dinner) {
+                      setMealPickerTarget({ date: dateISO, slot: 'dinner', dateLabel: day.format('ddd, MMM D') });
                     }
                   }}
                 >
@@ -989,6 +1066,21 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           isOpen={!!editingMeal}
           onClose={() => setEditingMeal(null)}
           onSave={handleSaveEditedMeal}
+        />
+      )}
+
+      {/* Meal Picker Modal (click-to-assign) */}
+      {mealPickerTarget && (
+        <MealPickerModal
+          isOpen={!!mealPickerTarget}
+          onClose={() => setMealPickerTarget(null)}
+          date={mealPickerTarget.date}
+          slot={mealPickerTarget.slot}
+          dateLabel={mealPickerTarget.dateLabel}
+          savedMeals={savedMeals}
+          freezerItems={freezerItems}
+          isFavorite={isFavorite}
+          onSelect={handleMealPickerSelect}
         />
       )}
 
