@@ -407,6 +407,7 @@ export const Schedule: React.FC<{
   const [currentWeek, setCurrentWeek] = useState(dayjs().startOf('week'));
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [mobileDayIndex, setMobileDayIndex] = useState(dayjs().day()); // 0=Sun, 6=Sat
 
   const weekDays = Array.from({ length: 7 }).map((_, i) => currentWeek.add(i, 'day'));
   const timeSlots = Array.from({ length: 15 }, (_, i) => TIMELINE_START_HOUR + i);
@@ -560,7 +561,7 @@ export const Schedule: React.FC<{
         animate={{ opacity: 1, y: 0 }}
         className="sticky top-[100px] z-40 bg-white border-b border-gray-200 shadow-sm -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-4 mt-3 md:mt-4 mb-3 md:mb-4"
       >
-        <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-2xl p-4 sm:p-6 border border-purple-200">
+        <div className="page-header bg-gradient-to-r from-purple-100 to-blue-100 border-purple-200 p-4 sm:p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <button
@@ -587,7 +588,7 @@ export const Schedule: React.FC<{
                 setEditingEvent(null);
                 setShowEventModal(true);
               }}
-              className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg"
+              className="btn btn-lg bg-purple-500 hover:bg-purple-600 text-white shadow-lg"
             >
               <Plus size={20} />
               Add Event
@@ -596,116 +597,64 @@ export const Schedule: React.FC<{
         </div>
       </motion.div>
 
-      {/* Weekly Calendar */}
+      {/* --- Desktop: full week grid (hidden on mobile) --- */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="relative h-[calc(100vh-320px)] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-lg"
+        className="hidden sm:block relative h-[calc(100vh-320px)] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-lg"
       >
         <div className="grid auto-rows-[80px]" style={{ gridTemplateColumns: '72px repeat(7, minmax(0, 1fr))' }}>
-          {/* Header Row */}
-          {/* Time gutter header (blank) */}
           <div className="sticky top-0 left-0 z-40 bg-white border-b border-r border-gray-200 flex items-center justify-center">
             <Clock size={18} className="text-gray-400" />
           </div>
-
-          {/* Day headers */}
           {weekDays.map(day => (
             <div
               key={`header-${day.format('YYYY-MM-DD')}`}
               className="sticky top-0 z-30 bg-white border-b border-r border-gray-200 last:border-r-0 flex flex-col items-center justify-center py-3"
             >
               <div className="text-xs font-medium text-gray-500">{day.format('ddd')}</div>
-              <div className={`text-lg font-bold ${
-                day.isSame(dayjs(), 'day') ? 'text-purple-600' : 'text-gray-800'
-              }`}>
-                {day.format('D')}
-              </div>
+              <div className={`text-lg font-bold ${day.isSame(dayjs(), 'day') ? 'text-purple-600' : 'text-gray-800'}`}>{day.format('D')}</div>
             </div>
           ))}
-
-          {/* Hour Rows */}
           {timeSlots.map(hour => (
             <React.Fragment key={hour}>
-              {/* Time gutter cell */}
               <div className="sticky left-0 z-20 bg-white border-r border-b border-gray-200 pr-3 pl-2 text-right text-xs text-gray-500 flex items-start pt-1">
                 {dayjs().hour(hour).format('h A')}
               </div>
-
-              {/* Day cells for this hour */}
               {weekDays.map(day => {
-                // Get all events for this day
-                const dayEvents = allScheduledEventsForWeek.filter(event =>
-                  dayjs(event.displayDate).isSame(day, 'day')
-                );
-
-                // Apply layout algorithm
+                const dayEvents = allScheduledEventsForWeek.filter(event => dayjs(event.displayDate).isSame(day, 'day'));
                 const layoutedEvents = layoutEventsForDay(dayEvents);
-
-                // Only render events that start in this hour slot
-                const hourEvents = layoutedEvents.filter(event => {
-                  const eventStartHour = Math.floor(event.startMinutes / 60);
-                  return eventStartHour === hour;
-                });
-
                 return (
-                  <div
-                    key={`${day.format('YYYY-MM-DD')}-${hour}`}
-                    className="relative border-b border-r border-gray-100 last:border-r-0"
-                  >
-                    {/* Render events that start in this row, but they span multiple rows if needed */}
+                  <div key={`${day.format('YYYY-MM-DD')}-${hour}`} className="relative border-b border-r border-gray-100 last:border-r-0">
                     {hour === TIMELINE_START_HOUR && (
                       <div className="absolute inset-0" style={{ height: `${timeSlots.length * 80}px` }}>
                         {layoutedEvents.map(event => {
                           const displayDuration = Math.max(15, event.endMinutes - event.startMinutes);
-                          const topPosition = ((event.startMinutes - (TIMELINE_START_HOUR * 60)) * PIXELS_PER_MINUTE);
-                          const height = (displayDuration * PIXELS_PER_MINUTE);
+                          const topPosition = (event.startMinutes - TIMELINE_START_HOUR * 60) * PIXELS_PER_MINUTE;
+                          const height = displayDuration * PIXELS_PER_MINUTE;
                           const member = familyMembers.find(m => m.id === event.memberId);
-
-                          // Calculate horizontal positioning
                           const gap = 4;
                           const widthPercent = 100 / event.totalColumns;
                           const leftPercent = widthPercent * event.column;
-
-                          // CSS calc for precise spacing
                           const width = `calc(${widthPercent}% - ${gap * (event.totalColumns - 1) / event.totalColumns}px)`;
                           const left = `calc(${leftPercent}% + ${gap * event.column}px)`;
-
                           return (
                             <motion.div
                               key={`${event.id}-${event.displayDate}-${event.memberId}`}
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               className="absolute rounded-md shadow-sm cursor-pointer hover:shadow-lg hover:z-20 transition-shadow group z-10 max-w-full"
-                              style={{
-                                top: `${topPosition}px`,
-                                height: `${Math.max(height, 50)}px`,
-                                left,
-                                width,
-                                backgroundColor: event.color,
-                              }}
+                              style={{ top: `${topPosition}px`, height: `${Math.max(height, 50)}px`, left, width, backgroundColor: event.color }}
                               onClick={() => handleEditEvent(event)}
                             >
                               <div className="text-white p-2 h-full overflow-hidden">
-                                <div className="text-xs font-bold truncate">
-                                  {event.title}
-                                </div>
-                                <div className="text-[10px] opacity-90 truncate">
-                                  {member?.avatar} {member?.name}
-                                </div>
-                                <div className="text-[10px] opacity-75">
-                                  {event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)}
-                                </div>
+                                <div className="text-xs font-bold truncate">{event.title}</div>
+                                <div className="text-[10px] opacity-90 truncate">{member?.avatar} {member?.name}</div>
+                                <div className="text-[10px] opacity-75">{event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)}</div>
                               </div>
                               <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteEvent(event);
-                                  }}
-                                  className="p-1 bg-white/20 hover:bg-white/30 rounded transition-colors"
-                                >
+                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event); }} className="p-1 bg-white/20 hover:bg-white/30 rounded transition-colors">
                                   <Trash2 size={12} className="text-white" />
                                 </button>
                               </div>
@@ -719,6 +668,100 @@ export const Schedule: React.FC<{
               })}
             </React.Fragment>
           ))}
+        </div>
+      </motion.div>
+
+      {/* --- Mobile: single-day view (visible only on mobile) --- */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="sm:hidden"
+      >
+        {/* Day selector */}
+        <div className="flex items-center justify-between mb-3 bg-white rounded-xl p-2 border border-gray-200 shadow-sm">
+          <button
+            onClick={() => setMobileDayIndex(Math.max(0, mobileDayIndex - 1))}
+            disabled={mobileDayIndex === 0}
+            className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 transition-colors"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <div className="text-center">
+            <div className={`text-lg font-bold ${weekDays[mobileDayIndex]?.isSame(dayjs(), 'day') ? 'text-purple-600' : 'text-gray-800'}`}>
+              {weekDays[mobileDayIndex]?.format('dddd')}
+            </div>
+            <div className="text-sm text-gray-500">{weekDays[mobileDayIndex]?.format('MMM D')}</div>
+          </div>
+          <button
+            onClick={() => setMobileDayIndex(Math.min(6, mobileDayIndex + 1))}
+            disabled={mobileDayIndex === 6}
+            className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-30 transition-colors"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
+        {/* Single-day timeline */}
+        <div className="relative h-[calc(100vh-400px)] overflow-auto rounded-2xl border border-gray-200 bg-white shadow-lg">
+          <div className="grid auto-rows-[80px]" style={{ gridTemplateColumns: '56px 1fr' }}>
+            {/* Header */}
+            <div className="sticky top-0 left-0 z-40 bg-white border-b border-r border-gray-200 flex items-center justify-center">
+              <Clock size={16} className="text-gray-400" />
+            </div>
+            <div className="sticky top-0 z-30 bg-white border-b border-gray-200 flex items-center justify-center py-2">
+              <span className={`text-base font-bold ${weekDays[mobileDayIndex]?.isSame(dayjs(), 'day') ? 'text-purple-600' : 'text-gray-800'}`}>
+                {weekDays[mobileDayIndex]?.format('ddd D')}
+              </span>
+            </div>
+
+            {/* Hour rows */}
+            {timeSlots.map(hour => {
+              const mobileDay = weekDays[mobileDayIndex];
+              const dayEvents = allScheduledEventsForWeek.filter(event => dayjs(event.displayDate).isSame(mobileDay, 'day'));
+              const layoutedEvents = layoutEventsForDay(dayEvents);
+              return (
+                <React.Fragment key={hour}>
+                  <div className="sticky left-0 z-20 bg-white border-r border-b border-gray-200 pr-2 pl-1 text-right text-xs text-gray-500 flex items-start pt-1">
+                    {dayjs().hour(hour).format('h A')}
+                  </div>
+                  <div className="relative border-b border-gray-100">
+                    {hour === TIMELINE_START_HOUR && (
+                      <div className="absolute inset-0" style={{ height: `${timeSlots.length * 80}px` }}>
+                        {layoutedEvents.map(event => {
+                          const displayDuration = Math.max(15, event.endMinutes - event.startMinutes);
+                          const topPosition = (event.startMinutes - TIMELINE_START_HOUR * 60) * PIXELS_PER_MINUTE;
+                          const height = displayDuration * PIXELS_PER_MINUTE;
+                          const member = familyMembers.find(m => m.id === event.memberId);
+                          const gap = 4;
+                          const widthPercent = 100 / event.totalColumns;
+                          const leftPercent = widthPercent * event.column;
+                          const width = `calc(${widthPercent}% - ${gap * (event.totalColumns - 1) / event.totalColumns}px)`;
+                          const left = `calc(${leftPercent}% + ${gap * event.column}px)`;
+                          return (
+                            <motion.div
+                              key={`m-${event.id}-${event.displayDate}-${event.memberId}`}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="absolute rounded-md shadow-sm cursor-pointer hover:shadow-lg hover:z-20 transition-shadow group z-10 max-w-full"
+                              style={{ top: `${topPosition}px`, height: `${Math.max(height, 50)}px`, left, width, backgroundColor: event.color }}
+                              onClick={() => handleEditEvent(event)}
+                            >
+                              <div className="text-white p-2 h-full overflow-hidden">
+                                <div className="text-xs font-bold truncate">{event.title}</div>
+                                <div className="text-[10px] opacity-90 truncate">{member?.avatar} {member?.name}</div>
+                                <div className="text-[10px] opacity-75">{event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)}</div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
       </motion.div>
 

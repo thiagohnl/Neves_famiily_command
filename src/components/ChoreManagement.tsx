@@ -195,14 +195,14 @@ const ChoreManagement: React.FC<ChoreManagementProps> = ({
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-green-100 via-blue-100 to-purple-100 rounded-3xl p-6 shadow-lg border-2 border-green-200">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="page-header bg-gradient-to-r from-green-100 via-blue-100 to-purple-100 border-green-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3"><div className="text-4xl">📋</div><div><h1 className="text-3xl font-bold text-gray-800">Chore Management</h1><p className="text-gray-600">Manage all family chores, tasks, and schedules</p></div></div>
-          <button onClick={() => setShowAddForm(true)} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors"><Plus size={20} /> Add Chore</button>
+          <button onClick={() => setShowAddForm(true)} className="btn btn-lg bg-green-500 hover:bg-green-600 text-white shadow-lg"><Plus size={20} /> Add Chore</button>
         </div>
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card-sm">
         <div className="flex flex-wrap gap-4 items-center"><div className="flex items-center gap-2"><Filter className="text-gray-500" size={20} /><span className="font-medium text-gray-700">Filters:</span></div>
           <select value={filterMember} onChange={(e) => setFilterMember(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg"><option value="all">All Family Members</option>{familyMembers.map(member => (<option key={member.id} value={member.id}>{member.avatar} {member.name}</option>))}</select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg"><option value="all">All Status</option><option value="pending">Pending</option><option value="completed">Completed</option></select>
@@ -211,7 +211,7 @@ const ChoreManagement: React.FC<ChoreManagementProps> = ({
 
       <AnimatePresence>
         {(showAddForm || editingChore) && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-white rounded-2xl p-6 shadow-lg">
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="card">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">{editingChore ? 'Edit Chore' : 'Add New Chore'}</h2>
             <ChoreForm 
               familyMembers={familyMembers} 
@@ -233,7 +233,7 @@ const ChoreManagement: React.FC<ChoreManagementProps> = ({
           filteredChores.map((chore) => {
             const member = familyMembers.find(m => m.id === chore.assigned_to);
             return (
-              <div key={chore.id} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <div key={chore.id} className="card">
                   <div>
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3"><div className="text-3xl">{chore.emoji || '📋'}</div><div><h3 className="text-lg font-bold text-gray-800">{chore.name}</h3>{chore.is_completed && (<span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mt-1">✅ Completed</span>)}</div></div>

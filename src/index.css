@@ -35,36 +35,173 @@
   border-color: var(--primary-color) !important;
 }
 
-/* Dark Theme Styles */
+/* -------------------------------------------------- */
+/* Reusable component classes                         */
+/* -------------------------------------------------- */
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 text-sm;
+  }
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+  .btn-sm {
+    @apply px-3 py-2 text-sm;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-white rounded-2xl p-6 shadow-lg border border-gray-100;
+  }
+  .card-sm {
+    @apply bg-white rounded-2xl p-4 shadow-lg border border-gray-100;
+  }
+
+  /* Page headers (gradient banner) */
+  .page-header {
+    @apply rounded-2xl p-6 shadow-lg border;
+  }
+}
+
+/* -------------------------------------------------- */
+/* Dark Theme Styles                                  */
+/* -------------------------------------------------- */
 .dark {
   color-scheme: dark;
 }
 
+/* --- Backgrounds --- */
 .dark .bg-white {
   background-color: #1F2937 !important;
-  color: white !important;
+  color: #F3F4F6 !important;
 }
-
-.dark .text-gray-800 {
-  color: #F9FAFB !important;
+.dark .bg-white\/80,
+.dark .bg-white\/60 {
+  background-color: rgba(31, 41, 55, 0.92) !important;
+  color: #F3F4F6 !important;
 }
-
-.dark .text-gray-600 {
-  color: #D1D5DB !important;
-}
-
-.dark .border-gray-100 {
-  border-color: #374151 !important;
-}
-
-.dark .border-gray-200 {
-  border-color: #4B5563 !important;
-}
-
 .dark .bg-gray-50 {
   background-color: #374151 !important;
 }
-
 .dark .bg-gray-100 {
   background-color: #4B5563 !important;
+}
+.dark .bg-gray-200 {
+  background-color: #6B7280 !important;
+}
+
+/* --- Text --- */
+.dark .text-gray-800 {
+  color: #F9FAFB !important;
+}
+.dark .text-gray-700 {
+  color: #E5E7EB !important;
+}
+.dark .text-gray-600 {
+  color: #D1D5DB !important;
+}
+.dark .text-gray-500 {
+  color: #9CA3AF !important;
+}
+.dark .text-gray-400 {
+  color: #9CA3AF !important;
+}
+
+/* --- Borders --- */
+.dark .border-gray-100 {
+  border-color: #374151 !important;
+}
+.dark .border-gray-200 {
+  border-color: #4B5563 !important;
+}
+.dark .border-gray-300 {
+  border-color: #6B7280 !important;
+}
+
+/* --- Gradient summary cards (Timeline board) --- */
+.dark .from-purple-100 { --tw-gradient-from: #312e81 !important; }
+.dark .to-pink-100     { --tw-gradient-to:   #831843 !important; }
+.dark .from-orange-100 { --tw-gradient-from: #7c2d12 !important; }
+.dark .to-yellow-100   { --tw-gradient-to:   #713f12 !important; }
+.dark .from-green-100  { --tw-gradient-from: #14532d !important; }
+.dark .to-blue-100     { --tw-gradient-to:   #1e3a5f !important; }
+.dark .from-yellow-100 { --tw-gradient-from: #713f12 !important; }
+
+/* Gradient header banners */
+.dark .from-green-100.via-blue-100 { --tw-gradient-from: #14532d !important; --tw-gradient-via: #1e3a5f !important; }
+.dark .to-purple-100   { --tw-gradient-to: #312e81 !important; }
+.dark .from-purple-100.to-blue-100 { --tw-gradient-from: #312e81 !important; --tw-gradient-to: #1e3a5f !important; }
+.dark .from-yellow-100.to-orange-100 { --tw-gradient-from: #713f12 !important; --tw-gradient-to: #7c2d12 !important; }
+
+/* Gradient banner border */
+.dark .border-green-200  { border-color: #166534 !important; }
+.dark .border-purple-200 { border-color: #4c1d95 !important; }
+.dark .border-yellow-200 { border-color: #854d0e !important; }
+
+/* Gradient text inside summary cards */
+.dark .text-purple-800 { color: #c4b5fd !important; }
+.dark .text-purple-600 { color: #a78bfa !important; }
+.dark .text-orange-800 { color: #fdba74 !important; }
+.dark .text-orange-600 { color: #fb923c !important; }
+.dark .text-green-800  { color: #86efac !important; }
+.dark .text-green-600  { color: #4ade80 !important; }
+.dark .text-green-700  { color: #4ade80 !important; }
+.dark .text-yellow-600 { color: #facc15 !important; }
+.dark .text-blue-600   { color: #93c5fd !important; }
+.dark .text-blue-800   { color: #bfdbfe !important; }
+.dark .text-red-600    { color: #fca5a5 !important; }
+.dark .text-orange-700 { color: #fdba74 !important; }
+
+/* --- Form inputs --- */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #374151 !important;
+  border-color: #4B5563 !important;
+  color: #F3F4F6 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+/* --- Modal overlay --- */
+.dark .bg-black.bg-opacity-50 {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* --- Hover states --- */
+.dark .hover\:bg-gray-50:hover {
+  background-color: #374151 !important;
+}
+.dark .hover\:bg-gray-100:hover {
+  background-color: #4B5563 !important;
+}
+
+/* --- Badges / pills in dark mode --- */
+.dark .bg-green-100 { background-color: #14532d !important; }
+.dark .text-green-800 { color: #86efac !important; }
+.dark .bg-blue-100  { background-color: #1e3a5f !important; }
+.dark .text-blue-800 { color: #bfdbfe !important; }
+.dark .bg-red-100   { background-color: #7f1d1d !important; }
+.dark .bg-yellow-50 { background-color: #713f12 !important; }
+
+/* --- Scrollbar in dark mode --- */
+.dark ::-webkit-scrollbar { width: 8px; height: 8px; }
+.dark ::-webkit-scrollbar-track { background: #1F2937; }
+.dark ::-webkit-scrollbar-thumb { background: #4B5563; border-radius: 4px; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #6B7280; }
+
+/* --- Card utility in dark mode --- */
+.dark .card,
+.dark .card-sm {
+  background-color: #1F2937 !important;
+  border-color: #374151 !important;
+  color: #F3F4F6 !important;
+}
+
+/* --- Page header utility in dark mode --- */
+.dark .page-header {
+  border-color: #374151 !important;
 }

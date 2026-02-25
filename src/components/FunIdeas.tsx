@@ -203,7 +203,7 @@ export const FunIdeas: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-3xl p-6 shadow-lg border-2 border-yellow-200"
+        className="page-header bg-gradient-to-r from-yellow-100 to-orange-100 border-yellow-200"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -215,7 +215,7 @@ export const FunIdeas: React.FC = () => {
           </div>
           <button
             onClick={() => setShowAddForm(true)}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+            className="btn btn-lg bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg"
           >
             <Plus size={24} />
             Add Idea
@@ -230,7 +230,7 @@ export const FunIdeas: React.FC = () => {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-1 md:grid-cols-3 gap-4"
       >
-        <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
+        <div className="card-sm">
           <div className="flex items-center gap-3">
             <div className="text-2xl">💡</div>
             <div>
@@ -239,8 +239,8 @@ export const FunIdeas: React.FC = () => {
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
+
+        <div className="card-sm">
           <div className="flex items-center gap-3">
             <div className="text-2xl">⭐</div>
             <div>
@@ -251,8 +251,8 @@ export const FunIdeas: React.FC = () => {
             </div>
           </div>
         </div>
-        
-        <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
+
+        <div className="card-sm">
           <div className="flex items-center gap-3">
             <div className="text-2xl">🏷️</div>
             <div>
@@ -270,7 +270,7 @@ export const FunIdeas: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100"
+        className="card-sm"
       >
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex items-center gap-2">
@@ -310,7 +310,7 @@ export const FunIdeas: React.FC = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100"
+            className="card"
           >
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Add New Fun Idea</h2>
             
@@ -475,7 +475,7 @@ export const FunIdeas: React.FC = () => {
           </div>
         ) : (
           filteredIdeas.map((idea) => (
-            <div key={idea.id} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow">
+            <div key={idea.id} className="card hover:shadow-xl transition-shadow">
               {editingIdea?.id === idea.id ? (
                 // Edit Mode
                 <div className="space-y-4">
