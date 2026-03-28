@@ -13,8 +13,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@supabase/storage-js": "^2.10.2",
     "@supabase/supabase-js": "^2.52.1",
+    "@vercel/node": "^5.6.22",
     "dayjs": "^1.11.17",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.344.0",

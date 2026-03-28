@@ -17,6 +17,12 @@ import { EditSavedMealDialog } from './EditSavedMealDialog';
 import { PlannedMealPopover } from './PlannedMealPopover';
 import { updateSavedMeal, deletePlannedMeal, changePlannedMealSlot, copyWeekPlan, clearWeekPlan } from '../lib/mealsApi';
 import { MealPickerModal } from './MealPickerModal';
+import { PantryPanel } from './PantryPanel';
+import { GroceryList } from './GroceryList';
+import { AIMealSuggestions } from './AIMealSuggestions';
+import { usePantry, useExpiringSoon } from '../hooks/usePantry';
+import { useAIMealSuggestions } from '../hooks/useAIMealSuggestions';
+import type { MealSuggestion } from '../lib/aiApi';
 import type { MealType } from '../types/meal-plan';
 
 dayjs.extend(weekOfYear);
@@ -36,6 +42,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
   const [editingMeal, setEditingMeal] = useState<any>(null);
   const [plannedMealPopover, setPlannedMealPopover] = useState<{ date: string; slot: MealSlot; meal: any; position: { top: number; left: number } } | null>(null);
   const [mealPickerTarget, setMealPickerTarget] = useState<{ date: string; slot: MealSlot; dateLabel: string } | null>(null);
+  const [mealsSubTab, setMealsSubTab] = useState<'planner' | 'pantry' | 'grocery'>('planner');
 
   const [newMeal, setNewMeal] = useState({ name: '', emoji: '🍽️', notes: '' });
   const [newFreezerItem, setNewFreezerItem] = useState({ name: '', emoji: '🧊', notes: '', quantity: 1 });
@@ -56,6 +63,67 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
 
   const { items: plannedMeals, plan: planMeal, refetch: refetchWeekPlan } = useWeekMealPlan(weekStart);
   const { challenge, loading: questLoading, trackMealPlan, trackFreezerUse } = useMealQuest(weekStart);
+
+  // AI Suggestions
+  const { items: pantryItems } = usePantry();
+  const { items: expiringItems } = useExpiringSoon(5);
+  const { suggestions: aiSuggestions, loading: aiLoading, error: aiError, generateSuggestions, clearSuggestions } = useAIMealSuggestions();
+  const [showAISuggestions, setShowAISuggestions] = useState(false);
+  const [appliedSlots, setAppliedSlots] = useState<Set<string>>(new Set());
+
+  const handleGenerateAI = async () => {
+    const favoriteIds = savedMeals.filter((m) => isFavorite(m.id)).map((m) => m.name);
+    try {
+      await generateSuggestions({
+        pantryItems,
+        savedMeals,
+        recentMealPlan: plannedMeals,
+        favorites: favoriteIds,
+        expiringItems,
+      });
+      setAppliedSlots(new Set());
+    } catch {
+      // error is already captured in the hook
+    }
+  };
+
+  const handleApplyAIMeal = async (dayIndex: number, slot: MealSlot, meal: MealSuggestion) => {
+    const day = weekDays[dayIndex];
+    if (!day) return;
+    const dateISO = day.format('YYYY-MM-DD');
+    try {
+      await planMeal(dateISO, slot, { id: null, name: meal.name, emoji: meal.emoji });
+      setAppliedSlots((prev) => new Set(prev).add(`${dayIndex}-${slot}`));
+      await refetchWeekPlan();
+      toast.success(`Planned ${meal.name}!`);
+    } catch {
+      toast.error('Failed to apply suggestion');
+    }
+  };
+
+  const handleApplyAllAI = async () => {
+    if (!aiSuggestions) return;
+    for (let dayIndex = 0; dayIndex < aiSuggestions.length && dayIndex < 7; dayIndex++) {
+      const day = weekDays[dayIndex];
+      if (!day) continue;
+      const dateISO = day.format('YYYY-MM-DD');
+      const daySuggestion = aiSuggestions[dayIndex];
+      for (const slot of ['breakfast', 'lunch', 'dinner'] as MealSlot[]) {
+        const meal = daySuggestion[slot];
+        if (!meal) continue;
+        const key = `${dayIndex}-${slot}`;
+        if (appliedSlots.has(key)) continue;
+        try {
+          await planMeal(dateISO, slot, { id: null, name: meal.name, emoji: meal.emoji });
+          setAppliedSlots((prev) => new Set(prev).add(key));
+        } catch {
+          // continue with next
+        }
+      }
+    }
+    await refetchWeekPlan();
+    toast.success('All suggestions applied!');
+  };
 
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
@@ -336,6 +404,36 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
         />
       )}
 
+      {/* Sub-navigation tabs */}
+      <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 mb-6">
+        {([
+          { key: 'planner' as const, label: 'Meal Plan', icon: '🍽️' },
+          { key: 'pantry' as const, label: 'Pantry', icon: '🗄️' },
+          { key: 'grocery' as const, label: 'Grocery List', icon: '🛒' },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setMealsSubTab(tab.key)}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              mealsSubTab === tab.key
+                ? 'bg-white dark:bg-gray-600 shadow-sm text-purple-700 dark:text-purple-300'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            <span>{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {mealsSubTab === 'pantry' ? (
+        <div className="max-w-4xl mx-auto">
+          <PantryPanel isParentMode={isParentMode} />
+        </div>
+      ) : mealsSubTab === 'grocery' ? (
+        <GroceryList isParentMode={isParentMode} />
+      ) : (
+      <div>
       <div className="grid grid-cols-12 gap-6">
       {/* LEFT SIDEBAR */}
       <div className="col-span-4 space-y-6">
@@ -583,6 +681,12 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
 
         {isParentMode && (
           <div className="flex gap-2 mb-1">
+            <button
+              onClick={() => setShowAISuggestions(true)}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-700 transition-colors flex items-center gap-1"
+            >
+              ✨ Suggest with AI
+            </button>
             <button
               onClick={handleCopyLastWeek}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
@@ -1101,7 +1205,22 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           position={plannedMealPopover.position}
         />
       )}
+
+      {/* AI Meal Suggestions Modal */}
+      <AIMealSuggestions
+        open={showAISuggestions}
+        onClose={() => setShowAISuggestions(false)}
+        suggestions={aiSuggestions}
+        loading={aiLoading}
+        error={aiError}
+        onGenerate={handleGenerateAI}
+        onApplyMeal={handleApplyAIMeal}
+        onApplyAll={handleApplyAllAI}
+        appliedSlots={appliedSlots}
+      />
       </div>
+      </div>
+      )}
     </>
   );
 };
