@@ -119,24 +119,30 @@ export const AIMealSuggestions: React.FC<AIMealSuggestionsProps> = ({
               {/* Suggestions Grid */}
               {suggestions && suggestions.length > 0 && (
                 <div className="space-y-1">
-                  <div className="grid grid-cols-7 gap-3">
-                    {suggestions.map((day, dayIndex) => (
-                      <div key={day.day} className="space-y-2">
-                        <div className="text-center text-sm font-semibold text-gray-700 dark:text-gray-300 py-1">
-                          {day.day}
-                        </div>
+                  {/* Day headers row */}
+                  <div className="grid grid-cols-7 gap-3 mb-2">
+                    {suggestions.map((day) => (
+                      <div key={day.day} className="text-center text-sm font-semibold text-gray-700 dark:text-gray-300 py-1">
+                        {day.day}
+                      </div>
+                    ))}
+                  </div>
 
-                        {(['breakfast', 'lunch', 'dinner'] as MealSlot[]).map((slot) => {
+                  {/* One row per meal slot */}
+                  {(['breakfast', 'lunch', 'dinner'] as MealSlot[]).map((slot) => {
+                    const colors = SLOT_COLORS[slot];
+                    return (
+                      <div key={slot} className="grid grid-cols-7 gap-3 mb-3">
+                        {suggestions.map((day, dayIndex) => {
                           const meal = day[slot];
-                          if (!meal) return null;
+                          if (!meal) return <div key={dayIndex} />;
                           const key = `${dayIndex}-${slot}`;
                           const applied = appliedSlots.has(key);
-                          const colors = SLOT_COLORS[slot];
 
                           return (
                             <motion.div
-                              key={slot}
-                              className={`rounded-lg border p-2 ${colors.bg} ${colors.border} ${
+                              key={dayIndex}
+                              className={`rounded-lg border p-2 flex flex-col ${colors.bg} ${colors.border} ${
                                 applied ? 'opacity-60' : ''
                               }`}
                               whileHover={{ scale: applied ? 1 : 1.02 }}
@@ -144,7 +150,7 @@ export const AIMealSuggestions: React.FC<AIMealSuggestionsProps> = ({
                               <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">
                                 {colors.label}
                               </div>
-                              <div className="flex flex-col items-center text-center">
+                              <div className="flex flex-col items-center text-center flex-1">
                                 <span className="text-xl">{meal.emoji}</span>
                                 <span className="text-xs font-medium dark:text-white mt-0.5 line-clamp-2">
                                   {meal.name}
@@ -159,12 +165,12 @@ export const AIMealSuggestions: React.FC<AIMealSuggestionsProps> = ({
                               {!applied ? (
                                 <button
                                   onClick={() => onApplyMeal(dayIndex, slot, meal)}
-                                  className="w-full mt-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium text-gray-700 dark:text-gray-200"
+                                  className="w-full mt-2 flex items-center justify-center gap-1 px-2 py-1 text-[10px] bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium text-gray-700 dark:text-gray-200"
                                 >
                                   <Plus size={10} /> Add
                                 </button>
                               ) : (
-                                <div className="w-full mt-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] text-green-600 dark:text-green-400 font-medium">
+                                <div className="w-full mt-2 flex items-center justify-center gap-1 px-2 py-1 text-[10px] text-green-600 dark:text-green-400 font-medium">
                                   <Check size={10} /> Added
                                 </div>
                               )}
@@ -172,8 +178,8 @@ export const AIMealSuggestions: React.FC<AIMealSuggestionsProps> = ({
                           );
                         })}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
 
                   {/* Regenerate */}
                   <div className="text-center pt-4">
