@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 .env
 coverage/
+
+# Local data backups (contain family data + parent PIN) and tool caches
+scripts/backups/
+scripts/__pycache__/
+supabase/.temp/
+
+.vercel
