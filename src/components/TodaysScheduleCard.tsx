@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 import { FamilyMember } from '../types';
 import { supabase } from '../lib/supabase';
+import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
 import dayjs from 'dayjs';
 
 interface ScheduleEvent {
@@ -33,6 +34,8 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
 }) => {
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [today, setToday] = useState(dayjs().format('YYYY-MM-DD'));
+  const { events: googleEvents } = useGoogleCalendar(today, today);
 
   useEffect(() => {
     fetchTodaysEvents();
@@ -40,6 +43,7 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
     const interval = setInterval(() => {
       const now = dayjs();
       if (now.hour() === 0 && now.minute() === 0) {
+        setToday(now.format('YYYY-MM-DD'));
         fetchTodaysEvents();
       }
     }, 60000);
@@ -65,13 +69,19 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
   };
 
   const todaysEvents = useMemo(() => {
-    const today = dayjs();
-    const todayDate = today.format('YYYY-MM-DD');
-    const todayName = today.format('dddd');
+    const todayDate = today;
+    const todayName = dayjs(todayDate).format('dddd');
     const now = dayjs();
     const currentMinutes = timeToMinutes(now.format('HH:mm'));
 
-    const scheduledEvents: Array<ScheduleEvent & { memberId: string; isOngoing: boolean }> = [];
+    const scheduledEvents: Array<
+      Pick<ScheduleEvent, 'id' | 'title' | 'start_time' | 'end_time' | 'color'> & {
+        memberId: string;
+        isOngoing: boolean;
+        isGoogle?: boolean;
+        allDay?: boolean;
+      }
+    > = [];
 
     events.forEach(event => {
       if (event.is_recurring) {
@@ -103,14 +113,34 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
       }
     });
 
+    // Read-only Google Calendar events for today
+    googleEvents
+      .filter(e => e.displayDate === todayDate)
+      .forEach(e => {
+        const startMinutes = timeToMinutes(e.start_time);
+        const endMinutes = timeToMinutes(e.end_time);
+        scheduledEvents.push({
+          id: e.id,
+          title: e.title,
+          start_time: e.start_time,
+          end_time: e.end_time,
+          color: '#4285F4',
+          memberId: '__google__',
+          isOngoing: !e.allDay && currentMinutes >= startMinutes && currentMinutes < endMinutes,
+          isGoogle: true,
+          allDay: e.allDay,
+        });
+      });
+
     scheduledEvents.sort((a, b) => {
+      if (!!a.allDay !== !!b.allDay) return a.allDay ? -1 : 1; // all-day first
       const aStart = timeToMinutes(a.start_time);
       const bStart = timeToMinutes(b.start_time);
       return aStart - bStart;
     });
 
     return scheduledEvents;
-  }, [events]);
+  }, [events, googleEvents, today]);
 
   const displayEvents = todaysEvents.slice(0, 3);
   const moreCount = Math.max(0, todaysEvents.length - 3);
@@ -158,7 +188,9 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
               const member = familyMembers.find(m => m.id === event.memberId);
               const startTime = dayjs().startOf('day').add(timeToMinutes(event.start_time), 'minute');
               const endTime = dayjs().startOf('day').add(timeToMinutes(event.end_time), 'minute');
-              const timeRange = `${startTime.format('HH:mm')}–${endTime.format('HH:mm')}`;
+              const timeRange = event.allDay
+                ? 'All day'
+                : `${startTime.format('HH:mm')}–${endTime.format('HH:mm')}`;
 
               return (
                 <div
@@ -176,7 +208,7 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
                       className="w-1.5 h-1.5 rounded-full"
                       style={{ backgroundColor: event.color }}
                     />
-                    {member?.name}
+                    {event.isGoogle ? '📅 Google' : member?.name}
                   </span>
                 </div>
               );

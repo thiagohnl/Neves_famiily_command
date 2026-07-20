@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, CreditCard as Edit2, Trash2, X, Clock, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { FamilyMember } from '../types';
 import { supabase } from '../lib/supabase';
+import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
 import toast from 'react-hot-toast';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -412,6 +413,37 @@ export const Schedule: React.FC<{
   const weekDays = Array.from({ length: 7 }).map((_, i) => currentWeek.add(i, 'day'));
   const timeSlots = Array.from({ length: 15 }, (_, i) => TIMELINE_START_HOUR + i);
 
+  // Read-only Google Calendar events for the visible week
+  const { events: googleEvents } = useGoogleCalendar(
+    currentWeek.format('YYYY-MM-DD'),
+    currentWeek.endOf('week').format('YYYY-MM-DD')
+  );
+  const googleTimedEvents = React.useMemo(
+    () =>
+      googleEvents
+        .filter(e => !e.allDay)
+        .map(e => ({
+          id: e.id,
+          title: e.title,
+          start_time: e.start_time,
+          end_time: e.end_time,
+          displayDate: e.displayDate,
+          memberId: '__google__',
+          color: '#4285F4',
+          isGoogle: true,
+        })),
+    [googleEvents]
+  );
+  const googleAllDayByDate = React.useMemo(() => {
+    const map: Record<string, typeof googleEvents> = {};
+    googleEvents
+      .filter(e => e.allDay)
+      .forEach(e => {
+        (map[e.displayDate] ||= []).push(e);
+      });
+    return map;
+  }, [googleEvents]);
+
   const fetchEvents = async () => {
     try {
       setFetchError(null);
@@ -623,12 +655,27 @@ export const Schedule: React.FC<{
                 {dayjs().hour(hour).format('h A')}
               </div>
               {weekDays.map(day => {
-                const dayEvents = allScheduledEventsForWeek.filter(event => dayjs(event.displayDate).isSame(day, 'day'));
+                const dayKey = day.format('YYYY-MM-DD');
+                const dayEvents = [
+                  ...allScheduledEventsForWeek.filter(event => dayjs(event.displayDate).isSame(day, 'day')),
+                  ...googleTimedEvents.filter(event => event.displayDate === dayKey),
+                ];
                 const layoutedEvents = layoutEventsForDay(dayEvents);
+                const allDayChips = googleAllDayByDate[dayKey] || [];
                 return (
                   <div key={`${day.format('YYYY-MM-DD')}-${hour}`} className="relative border-b border-r border-gray-100 last:border-r-0">
                     {hour === TIMELINE_START_HOUR && (
                       <div className="absolute inset-0" style={{ height: `${timeSlots.length * 80}px` }}>
+                        {allDayChips.map((ev, i) => (
+                          <div
+                            key={`allday-${ev.id}-${i}`}
+                            title={ev.title}
+                            className="absolute left-0.5 right-0.5 z-30 rounded border border-blue-300 bg-blue-50 text-blue-700 text-[10px] font-medium px-1 truncate"
+                            style={{ top: `${2 + i * 20}px`, height: '18px', lineHeight: '16px' }}
+                          >
+                            📅 {ev.title}
+                          </div>
+                        ))}
                         {layoutedEvents.map(event => {
                           const displayDuration = Math.max(15, event.endMinutes - event.startMinutes);
                           const topPosition = (event.startMinutes - TIMELINE_START_HOUR * 60) * PIXELS_PER_MINUTE;
@@ -644,20 +691,22 @@ export const Schedule: React.FC<{
                               key={`${event.id}-${event.displayDate}-${event.memberId}`}
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="absolute rounded-md shadow-sm cursor-pointer hover:shadow-lg hover:z-20 transition-shadow group z-10 max-w-full"
+                              className={`absolute rounded-md shadow-sm hover:z-20 transition-shadow group z-10 max-w-full ${event.isGoogle ? 'cursor-default ring-1 ring-white/40' : 'cursor-pointer hover:shadow-lg'}`}
                               style={{ top: `${topPosition}px`, height: `${Math.max(height, 50)}px`, left, width, backgroundColor: event.color }}
-                              onClick={() => handleEditEvent(event)}
+                              onClick={() => { if (!event.isGoogle) handleEditEvent(event); }}
                             >
                               <div className="text-white p-2 h-full overflow-hidden">
                                 <div className="text-xs font-bold truncate">{event.title}</div>
-                                <div className="text-[10px] opacity-90 truncate">{member?.avatar} {member?.name}</div>
+                                <div className="text-[10px] opacity-90 truncate">{event.isGoogle ? '📅 Google Calendar' : `${member?.avatar ?? ''} ${member?.name ?? ''}`}</div>
                                 <div className="text-[10px] opacity-75">{event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)}</div>
                               </div>
-                              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event); }} className="p-1 bg-white/20 hover:bg-white/30 rounded transition-colors">
-                                  <Trash2 size={12} className="text-white" />
-                                </button>
-                              </div>
+                              {!event.isGoogle && (
+                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteEvent(event); }} className="p-1 bg-white/20 hover:bg-white/30 rounded transition-colors">
+                                    <Trash2 size={12} className="text-white" />
+                                  </button>
+                                </div>
+                              )}
                             </motion.div>
                           );
                         })}
@@ -718,8 +767,13 @@ export const Schedule: React.FC<{
             {/* Hour rows */}
             {timeSlots.map(hour => {
               const mobileDay = weekDays[mobileDayIndex];
-              const dayEvents = allScheduledEventsForWeek.filter(event => dayjs(event.displayDate).isSame(mobileDay, 'day'));
+              const mobileDayKey = mobileDay?.format('YYYY-MM-DD');
+              const dayEvents = [
+                ...allScheduledEventsForWeek.filter(event => dayjs(event.displayDate).isSame(mobileDay, 'day')),
+                ...googleTimedEvents.filter(event => event.displayDate === mobileDayKey),
+              ];
               const layoutedEvents = layoutEventsForDay(dayEvents);
+              const allDayChips = (mobileDayKey && googleAllDayByDate[mobileDayKey]) || [];
               return (
                 <React.Fragment key={hour}>
                   <div className="sticky left-0 z-20 bg-white border-r border-b border-gray-200 pr-2 pl-1 text-right text-xs text-gray-500 flex items-start pt-1">
@@ -728,6 +782,16 @@ export const Schedule: React.FC<{
                   <div className="relative border-b border-gray-100">
                     {hour === TIMELINE_START_HOUR && (
                       <div className="absolute inset-0" style={{ height: `${timeSlots.length * 80}px` }}>
+                        {allDayChips.map((ev, i) => (
+                          <div
+                            key={`m-allday-${ev.id}-${i}`}
+                            title={ev.title}
+                            className="absolute left-0.5 right-0.5 z-30 rounded border border-blue-300 bg-blue-50 text-blue-700 text-[10px] font-medium px-1 truncate"
+                            style={{ top: `${2 + i * 20}px`, height: '18px', lineHeight: '16px' }}
+                          >
+                            📅 {ev.title}
+                          </div>
+                        ))}
                         {layoutedEvents.map(event => {
                           const displayDuration = Math.max(15, event.endMinutes - event.startMinutes);
                           const topPosition = (event.startMinutes - TIMELINE_START_HOUR * 60) * PIXELS_PER_MINUTE;
@@ -743,13 +807,13 @@ export const Schedule: React.FC<{
                               key={`m-${event.id}-${event.displayDate}-${event.memberId}`}
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="absolute rounded-md shadow-sm cursor-pointer hover:shadow-lg hover:z-20 transition-shadow group z-10 max-w-full"
+                              className={`absolute rounded-md shadow-sm hover:z-20 transition-shadow group z-10 max-w-full ${event.isGoogle ? 'cursor-default ring-1 ring-white/40' : 'cursor-pointer hover:shadow-lg'}`}
                               style={{ top: `${topPosition}px`, height: `${Math.max(height, 50)}px`, left, width, backgroundColor: event.color }}
-                              onClick={() => handleEditEvent(event)}
+                              onClick={() => { if (!event.isGoogle) handleEditEvent(event); }}
                             >
                               <div className="text-white p-2 h-full overflow-hidden">
                                 <div className="text-xs font-bold truncate">{event.title}</div>
-                                <div className="text-[10px] opacity-90 truncate">{member?.avatar} {member?.name}</div>
+                                <div className="text-[10px] opacity-90 truncate">{event.isGoogle ? '📅 Google Calendar' : `${member?.avatar ?? ''} ${member?.name ?? ''}`}</div>
                                 <div className="text-[10px] opacity-75">{event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)}</div>
                               </div>
                             </motion.div>
