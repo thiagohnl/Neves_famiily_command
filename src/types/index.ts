@@ -5,6 +5,8 @@ export interface FamilyMember {
   photo_url?: string;
   points: number;
   is_parent: boolean;
+  gender?: string | null;
+  birth_date?: string | null;
   created_at?: string;
 }
 
