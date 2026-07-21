@@ -117,7 +117,7 @@ function App() {
                   <button
                     key={tab.id}
                     onClick={() => setCurrentTab(tab.id as TabView)}
-                    className={`relative shrink-0 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-colors ${
+                    className={`relative shrink-0 flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500/30 transition-colors ${
                       isActive ? 'text-purple-600' : 'text-gray-600'
                     }`}
                     role="tab"
