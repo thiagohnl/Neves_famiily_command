@@ -12,13 +12,30 @@ export const data = {
     return data?.[0] ?? null;
   },
   async updateAppSettings(updates: any) {
+    const payload = { ...updates, updated_at: new Date().toISOString() };
+
+    // Find the existing settings row (id is a uuid — never fabricate one)
+    const { data: existing } = await supabase
+      .from('app_settings')
+      .select('id')
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .update(payload)
+        .eq('id', existing[0].id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    }
+
+    // No row yet — insert and let the DB generate the uuid
     const { data, error } = await supabase
       .from('app_settings')
-      .upsert({
-        id: 'default',
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
+      .insert(payload)
       .select()
       .single();
     if (error) throw error;
