@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CreditCard as Edit2, Trash2, Save, X, Star, MapPin, DollarSign, ExternalLink, Filter, Heart, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Star, MapPin, DollarSign, ExternalLink, Filter, Heart, Calendar } from 'lucide-react';
 import { useFunIdeas, FunIdea } from '../hooks/useFunIdeas';
 import { EmojiPicker } from './EmojiPicker';
 import toast from 'react-hot-toast';
@@ -478,25 +478,116 @@ export const FunIdeas: React.FC = () => {
             <div key={idea.id} className="card hover:shadow-xl transition-shadow">
               {editingIdea?.id === idea.id ? (
                 // Edit Mode
-                <div className="space-y-4">
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none font-bold text-lg"
-                  />
-                  
-                  <div className="flex gap-3">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Idea Name *</label>
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none font-bold"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                      <select
+                        value={editForm.category}
+                        onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none"
+                      >
+                        {categories.map(category => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Cost</label>
+                      <select
+                        value={editForm.cost}
+                        onChange={(e) => setEditForm({ ...editForm, cost: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none"
+                      >
+                        {costOptions.map(cost => (
+                          <option key={cost} value={cost}>{cost}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Emoji</label>
+                    <EmojiPicker
+                      value={editForm.emoji}
+                      onChange={(emoji) => setEditForm({ ...editForm, emoji })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Location</label>
+                    <input
+                      type="text"
+                      value={editForm.location}
+                      onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                      placeholder="e.g., Central Park, NYC"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Google Maps Link</label>
+                    <input
+                      type="url"
+                      value={editForm.google_maps_link}
+                      onChange={(e) => setEditForm({ ...editForm, google_maps_link: e.target.value })}
+                      placeholder="https://maps.google.com/..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Scheduled Date</label>
+                    <input
+                      type="date"
+                      value={editForm.scheduled_date}
+                      onChange={(e) => setEditForm({ ...editForm, scheduled_date: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                      placeholder="Any additional details or notes..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editForm.is_favorite}
+                      onChange={(e) => setEditForm({ ...editForm, is_favorite: e.target.checked })}
+                      className="rounded border-gray-300 text-yellow-500 focus:ring-yellow-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Mark as favorite</span>
+                  </label>
+
+                  <div className="flex gap-3 pt-1">
                     <button
                       onClick={() => setEditingIdea(null)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleUpdateIdea}
-                      disabled={isSubmitting}
-                      className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 transition-colors flex items-center gap-2"
+                      disabled={isSubmitting || !editForm.name.trim()}
+                      className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                     >
                       <Save size={16} />
                       Save
@@ -506,12 +597,12 @@ export const FunIdeas: React.FC = () => {
               ) : (
                 // View Mode
                 <div>
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="text-3xl">{idea.emoji || '🎯'}</div>
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-800">{idea.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="text-3xl flex-shrink-0">{idea.emoji || '🎯'}</div>
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-bold text-gray-800 break-words">{idea.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
                           {idea.category && (
                             <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
                               {idea.category}
@@ -526,7 +617,7 @@ export const FunIdeas: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleToggleFavorite(idea.id, idea.is_favorite || false)}
                         className={`p-2 rounded-lg transition-colors ${
@@ -566,18 +657,35 @@ export const FunIdeas: React.FC = () => {
                     </div>
                   </div>
                   
-                  {idea.location && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                      <MapPin size={14} />
-                      <span>{idea.location}</span>
+                  {(idea.location || idea.google_maps_link) && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mb-2">
+                      {idea.location && (
+                        idea.google_maps_link ? (
+                          <a
+                            href={idea.google_maps_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline break-words"
+                          >
+                            <MapPin size={14} className="flex-shrink-0" />
+                            <span>{idea.location}</span>
+                          </a>
+                        ) : (
+                          <span className="flex items-center gap-1 break-words">
+                            <MapPin size={14} className="flex-shrink-0" />
+                            {idea.location}
+                          </span>
+                        )
+                      )}
                       {idea.google_maps_link && (
                         <a
                           href={idea.google_maps_link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 ml-1"
+                          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium"
                         >
-                          <ExternalLink size={14} />
+                          <ExternalLink size={14} className="flex-shrink-0" />
+                          Open in Maps
                         </a>
                       )}
                     </div>
