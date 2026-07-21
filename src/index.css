@@ -205,3 +205,89 @@
 .dark .page-header {
   border-color: #374151 !important;
 }
+
+/* ================================================================== */
+/* Comprehensive dark pass — hue-preserving tints, text, borders,     */
+/* and gradient stops for every color utility used in the app.        */
+/* Appended last so it completes the partial rules above.             */
+/* ================================================================== */
+
+/* --- Tinted surfaces (bg-*-50 and bg-*-100 → muted dark, hue kept) --- */
+.dark .bg-red-50,    .dark .bg-red-100    { background-color: #3a2124 !important; }
+.dark .bg-orange-50, .dark .bg-orange-100 { background-color: #3a2a17 !important; }
+.dark .bg-amber-50,  .dark .bg-amber-100  { background-color: #3a2f12 !important; }
+.dark .bg-yellow-50, .dark .bg-yellow-100 { background-color: #38330f !important; }
+.dark .bg-green-50,  .dark .bg-green-100  { background-color: #17311f !important; }
+.dark .bg-emerald-50,.dark .bg-emerald-100{ background-color: #123024 !important; }
+.dark .bg-teal-50,   .dark .bg-teal-100   { background-color: #123030 !important; }
+.dark .bg-cyan-50,   .dark .bg-cyan-100   { background-color: #123038 !important; }
+.dark .bg-blue-50,   .dark .bg-blue-100   { background-color: #1a2c48 !important; }
+.dark .bg-indigo-50, .dark .bg-indigo-100 { background-color: #222549 !important; }
+.dark .bg-purple-50, .dark .bg-purple-100 { background-color: #2c2140 !important; }
+.dark .bg-violet-50, .dark .bg-violet-100 { background-color: #2a2145 !important; }
+.dark .bg-pink-50,   .dark .bg-pink-100   { background-color: #3a2135 !important; }
+.dark .bg-rose-50,   .dark .bg-rose-100   { background-color: #3a212c !important; }
+
+/* --- Colored text on dark surfaces (darkened tints → light, readable) --- */
+.dark .text-red-700,    .dark .text-red-800    { color: #fca5a5 !important; }
+.dark .text-orange-700, .dark .text-orange-800 { color: #fdba74 !important; }
+.dark .text-amber-700,  .dark .text-amber-800  { color: #fcd34d !important; }
+.dark .text-yellow-700, .dark .text-yellow-800 { color: #fde047 !important; }
+.dark .text-green-700,  .dark .text-green-800  { color: #86efac !important; }
+.dark .text-emerald-700,.dark .text-emerald-800{ color: #6ee7b7 !important; }
+.dark .text-teal-700,   .dark .text-teal-800   { color: #5eead4 !important; }
+.dark .text-cyan-700,   .dark .text-cyan-800   { color: #67e8f9 !important; }
+.dark .text-blue-700,   .dark .text-blue-800   { color: #93c5fd !important; }
+.dark .text-indigo-700, .dark .text-indigo-800 { color: #a5b4fc !important; }
+.dark .text-purple-700, .dark .text-purple-800 { color: #d8b4fe !important; }
+.dark .text-violet-700, .dark .text-violet-800 { color: #c4b5fd !important; }
+.dark .text-pink-700,   .dark .text-pink-800   { color: #f9a8d4 !important; }
+.dark .text-rose-700,   .dark .text-rose-800   { color: #fda4af !important; }
+.dark .text-gray-900 { color: #F9FAFB !important; }
+
+/* --- Colored borders (border-*-100 / -200 → muted mid-dark, hue kept) --- */
+.dark .border-red-100,    .dark .border-red-200    { border-color: #5c2f30 !important; }
+.dark .border-orange-100, .dark .border-orange-200 { border-color: #5c3d1c !important; }
+.dark .border-amber-100,  .dark .border-amber-200  { border-color: #5c4a18 !important; }
+.dark .border-yellow-100, .dark .border-yellow-200 { border-color: #5c5218 !important; }
+.dark .border-green-100,  .dark .border-green-200  { border-color: #2f5e46 !important; }
+.dark .border-blue-100,   .dark .border-blue-200   { border-color: #2f4a6b !important; }
+.dark .border-indigo-100, .dark .border-indigo-200 { border-color: #3a3e6b !important; }
+.dark .border-purple-100, .dark .border-purple-200 { border-color: #4a3a5e !important; }
+.dark .border-pink-100,   .dark .border-pink-200   { border-color: #5c3a4e !important; }
+
+/* --- Gradient stops for banner colors (from/via/to → dark, subtle hue) --- */
+.dark .from-blue-50    { --tw-gradient-from: #16283f var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(22 40 63 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-blue-100   { --tw-gradient-from: #1a2c48 var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(26 44 72 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-green-50   { --tw-gradient-from: #142a1c var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(20 42 28 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-green-100  { --tw-gradient-from: #17311f var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(23 49 31 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-yellow-50  { --tw-gradient-from: #2f2b10 var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(47 43 16 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-yellow-100 { --tw-gradient-from: #38330f var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(56 51 15 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-amber-50   { --tw-gradient-from: #2f2810 var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(47 40 16 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-purple-100 { --tw-gradient-from: #2c2140 var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(44 33 64 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-pink-100   { --tw-gradient-from: #3a2135 var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(58 33 53 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-orange-100 { --tw-gradient-from: #3a2a17 var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(58 42 23 / 0) var(--tw-gradient-to-position) !important; }
+.dark .from-red-100    { --tw-gradient-from: #3a2124 var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(58 33 36 / 0) var(--tw-gradient-to-position) !important; }
+
+.dark .via-purple-100  { --tw-gradient-to: rgb(44 33 64 / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), #2c2140 var(--tw-gradient-via-position), var(--tw-gradient-to) !important; }
+.dark .via-indigo-50   { --tw-gradient-to: rgb(34 37 73 / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), #1c1f3a var(--tw-gradient-via-position), var(--tw-gradient-to) !important; }
+.dark .via-blue-100    { --tw-gradient-to: rgb(26 44 72 / 0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), #1a2c48 var(--tw-gradient-via-position), var(--tw-gradient-to) !important; }
+
+.dark .to-blue-100     { --tw-gradient-to: #1a2c48 var(--tw-gradient-to-position) !important; }
+.dark .to-indigo-100   { --tw-gradient-to: #222549 var(--tw-gradient-to-position) !important; }
+.dark .to-purple-50    { --tw-gradient-to: #241b33 var(--tw-gradient-to-position) !important; }
+.dark .to-purple-100   { --tw-gradient-to: #2c2140 var(--tw-gradient-to-position) !important; }
+.dark .to-pink-50      { --tw-gradient-to: #2f1b2a var(--tw-gradient-to-position) !important; }
+.dark .to-pink-100     { --tw-gradient-to: #3a2135 var(--tw-gradient-to-position) !important; }
+.dark .to-yellow-50    { --tw-gradient-to: #2f2b10 var(--tw-gradient-to-position) !important; }
+.dark .to-yellow-100   { --tw-gradient-to: #38330f var(--tw-gradient-to-position) !important; }
+.dark .to-orange-50    { --tw-gradient-to: #2f2213 var(--tw-gradient-to-position) !important; }
+.dark .to-orange-100   { --tw-gradient-to: #3a2a17 var(--tw-gradient-to-position) !important; }
+.dark .to-cyan-100     { --tw-gradient-to: #123038 var(--tw-gradient-to-position) !important; }
+.dark .to-emerald-100  { --tw-gradient-to: #123024 var(--tw-gradient-to-position) !important; }
+.dark .to-gray-50      { --tw-gradient-to: #374151 var(--tw-gradient-to-position) !important; }
+
+/* --- Solid gray surfaces sometimes used for cards/nav --- */
+.dark .bg-gray-700 { background-color: #374151 !important; }
+.dark .bg-gray-800 { background-color: #1F2937 !important; }
+.dark .bg-gray-900 { background-color: #111827 !important; }
