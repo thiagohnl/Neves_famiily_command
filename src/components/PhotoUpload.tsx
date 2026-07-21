@@ -106,9 +106,9 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be smaller than 5MB', {
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image must be smaller than 10MB', {
         icon: '⚠️',
         duration: 3000,
       });
@@ -171,7 +171,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
         </motion.button>
         
         <p className="text-xs text-gray-500">
-          Max 5MB • JPG, PNG, GIF
+          Max 10MB • JPG, PNG, GIF
         </p>
       </div>
     </div>
