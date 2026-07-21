@@ -58,11 +58,11 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
         icon: '📸',
         duration: 3000,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading photo:', error);
-      toast.error('Failed to upload photo', {
+      toast.error(`Failed to upload photo: ${error?.message || 'unknown error'}`, {
         icon: '❌',
-        duration: 3000,
+        duration: 6000,
       });
     } finally {
       setUploading(false);
