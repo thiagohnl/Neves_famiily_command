@@ -145,7 +145,7 @@ function App() {
         id="main-content"
         role="tabpanel"
         aria-live="polite"
-        className="relative pt-[100px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8"
+        className="relative pt-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8"
       >
         <Suspense fallback={<TabSpinner />}>
           {currentTab === 'board' && <TimelineChoreBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} />}
