@@ -16,7 +16,7 @@ const initialNewChoreState = {
   recurring_days: [] as string[],
   emoji: '📋',
   scheduled_time: '09:00',
-  end_time: '10:00',
+  end_time: '09:15', // 15-min default duration
 };
 
 // --- Child Component: ChoreForm ---
@@ -55,22 +55,43 @@ const ChoreForm = ({
     setChore({ ...chore, recurring_days: newDays });
   };
 
-  // Add one hour to an "HH:mm" time, capped at 23:59
-  const addOneHour = (time: string): string => {
+  // A chore's length is a DURATION, not an absolute clock end time.
+  // We keep storing end_time (start + duration) so the board/schedule keep working.
+  const DURATION_OPTIONS = [5, 10, 15, 20, 30, 45, 60, 90];
+
+  const addMinutes = (time: string, mins: number): string => {
     const [h, m] = time.split(':').map(Number);
-    const total = Math.min(h * 60 + m + 60, 23 * 60 + 59);
+    const total = Math.min(h * 60 + m + mins, 23 * 60 + 59);
     return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
   };
 
-  const handleStartTimeChange = (newStart: string) => {
-    const updated = { ...chore, scheduled_time: newStart };
-    // Auto-advance end time when it's empty or would land at/before the new start
-    // (HH:mm strings compare chronologically). Keeps end sensible instead of e.g. 13:00 → 10:00.
-    if (newStart && (!chore.end_time || chore.end_time <= newStart)) {
-      updated.end_time = addOneHour(newStart);
+  // Derive the current duration in minutes from start/end (default 15)
+  const currentDuration = (() => {
+    if (chore.scheduled_time && chore.end_time) {
+      const [sh, sm] = chore.scheduled_time.split(':').map(Number);
+      const [eh, em] = chore.end_time.split(':').map(Number);
+      const diff = (eh * 60 + em) - (sh * 60 + sm);
+      if (diff > 0) return diff;
     }
-    setChore(updated);
+    return 15;
+  })();
+
+  // Include any legacy/custom duration so it's not silently lost in the dropdown
+  const durationChoices = DURATION_OPTIONS.includes(currentDuration)
+    ? DURATION_OPTIONS
+    : [...DURATION_OPTIONS, currentDuration].sort((a, b) => a - b);
+
+  const handleStartTimeChange = (newStart: string) => {
+    // Keep the same duration when the start moves
+    setChore({ ...chore, scheduled_time: newStart, end_time: addMinutes(newStart, currentDuration) });
   };
+
+  const handleDurationChange = (mins: number) => {
+    setChore({ ...chore, end_time: addMinutes(chore.scheduled_time || '09:00', mins) });
+  };
+
+  const formatDuration = (mins: number) =>
+    mins < 60 ? `${mins} min` : mins % 60 === 0 ? `${mins / 60} hr` : `${Math.floor(mins / 60)} hr ${mins % 60} min`;
 
   return (
       <div className="space-y-4">
@@ -96,7 +117,13 @@ const ChoreForm = ({
           <div><label className="block text-sm font-medium text-gray-700 mb-2">Points</label><select value={chore.points} onChange={(e) => setChore({ ...chore, points: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value={5}>5 (Easy)</option><option value={10}>10 (Medium)</option><option value={20}>20 (Hard)</option></select></div>
           <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label><input type="time" value={chore.scheduled_time} onChange={(e) => handleStartTimeChange(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-2">End Time</label><input type="time" value={chore.end_time || ''} onChange={(e) => setChore({ ...chore, end_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+                <select value={currentDuration} onChange={(e) => handleDurationChange(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  {durationChoices.map(mins => (<option key={mins} value={mins}>{formatDuration(mins)}</option>))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">How long the chore should take{chore.scheduled_time ? ` (ends ${chore.end_time})` : ''}.</p>
+              </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Emoji</label>
