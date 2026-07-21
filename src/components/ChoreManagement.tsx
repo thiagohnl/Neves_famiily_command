@@ -55,6 +55,23 @@ const ChoreForm = ({
     setChore({ ...chore, recurring_days: newDays });
   };
 
+  // Add one hour to an "HH:mm" time, capped at 23:59
+  const addOneHour = (time: string): string => {
+    const [h, m] = time.split(':').map(Number);
+    const total = Math.min(h * 60 + m + 60, 23 * 60 + 59);
+    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  };
+
+  const handleStartTimeChange = (newStart: string) => {
+    const updated = { ...chore, scheduled_time: newStart };
+    // Auto-advance end time when it's empty or would land at/before the new start
+    // (HH:mm strings compare chronologically). Keeps end sensible instead of e.g. 13:00 → 10:00.
+    if (newStart && (!chore.end_time || chore.end_time <= newStart)) {
+      updated.end_time = addOneHour(newStart);
+    }
+    setChore(updated);
+  };
+
   return (
       <div className="space-y-4">
           <div><label className="block text-sm font-medium text-gray-700 mb-2">Chore Name *</label><input type="text" value={chore.name} onChange={(e) => setChore({ ...chore, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div>
@@ -78,7 +95,7 @@ const ChoreForm = ({
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-2">Points</label><select value={chore.points} onChange={(e) => setChore({ ...chore, points: Number(e.target.value) })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"><option value={5}>5 (Easy)</option><option value={10}>10 (Medium)</option><option value={20}>20 (Hard)</option></select></div>
           <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label><input type="time" value={chore.scheduled_time} onChange={(e) => setChore({ ...chore, scheduled_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label><input type="time" value={chore.scheduled_time} onChange={(e) => handleStartTimeChange(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-2">End Time</label><input type="time" value={chore.end_time || ''} onChange={(e) => setChore({ ...chore, end_time: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div>
           </div>
           <div>
