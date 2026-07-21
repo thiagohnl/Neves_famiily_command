@@ -67,7 +67,7 @@ function App() {
   const getThemeClasses = () => { /* ... same as before ... */ };
   const getHeaderClasses = () => { /* ... same as before ... */ };
 
-  if (showEditMembers) { return <EditFamilyMembers onBack={() => setShowEditMembers(false)} />; }
+  if (showEditMembers) { return <EditFamilyMembers onBack={() => { setShowEditMembers(false); refetch(); }} />; }
   if (loading || settingsLoading) { /* ... same as before ... */ }
   if (error) { /* ... same as before ... */ }
 
