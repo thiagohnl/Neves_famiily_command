@@ -98,8 +98,10 @@ ${JSON.stringify(recentContext, null, 1)}
 Please suggest a full week of meals.`;
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2500,
+      model: 'claude-sonnet-5',
+      // Fast JSON-only endpoint: skip thinking; new tokenizer needs extra output headroom
+      thinking: { type: 'disabled' },
+      max_tokens: 3500,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
     });
