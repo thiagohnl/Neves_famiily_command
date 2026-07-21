@@ -434,9 +434,9 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
         <GroceryList isParentMode={isParentMode} />
       ) : (
       <div>
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* LEFT SIDEBAR */}
-      <div className="col-span-4 space-y-6">
+      <div className="lg:col-span-4 space-y-6 order-2 lg:order-1">
         {/* Saved Meals */}
         <div className="rounded-xl border bg-white p-4 shadow-lg">
           <div className="font-bold mb-3">Saved Meals</div>
@@ -634,7 +634,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
       </div>
 
       {/* WEEK GRID */}
-      <div className="col-span-8 space-y-6">
+      <div className="lg:col-span-8 space-y-6 order-1 lg:order-2">
         {/* Meal Quest Card */}
         <MealQuestCard
           challenge={challenge}
@@ -680,7 +680,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
         </div>
 
         {isParentMode && (
-          <div className="flex gap-2 mb-1">
+          <div className="flex flex-wrap gap-2 mb-1">
             <button
               onClick={() => setShowAISuggestions(true)}
               className="px-3 py-1.5 text-xs font-medium rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-700 transition-colors flex items-center gap-1"
@@ -702,13 +702,13 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           </div>
         )}
 
-        <div className="grid grid-cols-7 sm:grid-cols-7 gap-x-4 gap-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-x-4 gap-y-4">
           {weekDays.map((day) => {
             const dateISO = day.format('YYYY-MM-DD');
             const dayPlan = plannedMealsByDate[dateISO] ?? {};
             const isLastDay = day.day() === 0;
             return (
-              <div key={dateISO} className={`relative space-y-3 ${!isLastDay ? 'after:absolute after:top-0 after:right-[-8px] after:h-full after:w-px after:bg-gray-100' : ''}`}>
+              <div key={dateISO} className={`relative space-y-3 rounded-xl border border-gray-100 p-3 lg:border-0 lg:p-0 lg:rounded-none ${!isLastDay ? 'lg:after:absolute lg:after:top-0 lg:after:right-[-8px] lg:after:h-full lg:after:w-px lg:after:bg-gray-100' : ''}`}>
                 <div className="text-center">
                   <div className="text-sm font-semibold text-gray-800">{day.format('ddd')}</div>
                   <div className="text-xs text-gray-500">{day.format('MMM D')}</div>

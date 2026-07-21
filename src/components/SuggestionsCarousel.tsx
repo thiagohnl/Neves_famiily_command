@@ -54,15 +54,15 @@ export const SuggestionsCarousel: React.FC<SuggestionsCarouselProps> = ({
 
   return (
     <div className="rounded-xl border bg-white p-4 shadow-lg mb-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <h3 className="font-bold text-gray-800">Suggestions</h3>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
