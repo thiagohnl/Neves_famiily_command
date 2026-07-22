@@ -46,7 +46,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
   const [mealPickerTarget, setMealPickerTarget] = useState<{ date: string; slot: MealSlot; dateLabel: string } | null>(null);
   const [mealsSubTab, setMealsSubTab] = useState<'planner' | 'pantry' | 'grocery'>('planner');
 
-  const [newMeal, setNewMeal] = useState({ name: '', emoji: '🍽️', notes: '' });
+  const [newMeal, setNewMeal] = useState({ name: '', emoji: '🍽️', notes: '', mealTypes: ['lunch', 'dinner'] as string[] });
   const [newFreezerItem, setNewFreezerItem] = useState({ name: '', emoji: '🧊', notes: '', quantity: 1 });
 
   const { toggleFavorite, isFavorite, getFavoriteCount, isFamilyFave, isBackInRotation } = useMealFavorites();
@@ -89,15 +89,40 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
     }
   };
 
+  // Applied AI meals should join the saved-meals library so they can be
+  // favorited and are known to future AI runs. Links an existing meal by
+  // name, or creates a new one typed for the slot it was applied to.
+  const buildLibraryIdCache = () =>
+    new Map<string, string>(savedMeals.map((m: any) => [m.name.trim().toLowerCase(), m.id]));
+
+  const ensureMealInLibrary = async (
+    meal: MealSuggestion,
+    slot: MealSlot,
+    cache: Map<string, string>
+  ): Promise<string | null> => {
+    const key = meal.name.trim().toLowerCase();
+    const existing = cache.get(key);
+    if (existing) return existing;
+    try {
+      const created = await addSavedMeal(meal.name, meal.emoji, undefined, [slot]);
+      cache.set(key, created.id);
+      return created.id;
+    } catch {
+      // Plan it as free text rather than failing the whole apply
+      return null;
+    }
+  };
+
   const handleApplyAIMeal = async (dayIndex: number, slot: MealSlot, meal: MealSuggestion) => {
     const day = weekDays[dayIndex];
     if (!day) return;
     const dateISO = day.format('YYYY-MM-DD');
     try {
-      await planMeal(dateISO, slot, { id: null, name: meal.name, emoji: meal.emoji });
+      const mealId = await ensureMealInLibrary(meal, slot, buildLibraryIdCache());
+      await planMeal(dateISO, slot, { id: mealId, name: meal.name, emoji: meal.emoji });
       setAppliedSlots((prev) => new Set(prev).add(`${dayIndex}-${slot}`));
       await refetchWeekPlan();
-      toast.success(`Planned ${meal.name}!`);
+      toast.success(meal.is_new ? `Planned ${meal.name} — saved to library!` : `Planned ${meal.name}!`);
     } catch {
       toast.error('Failed to apply suggestion');
     }
@@ -105,6 +130,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
 
   const handleApplyAllAI = async () => {
     if (!aiSuggestions) return;
+    const cache = buildLibraryIdCache();
     for (let dayIndex = 0; dayIndex < aiSuggestions.length && dayIndex < 7; dayIndex++) {
       const day = weekDays[dayIndex];
       if (!day) continue;
@@ -116,7 +142,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
         const key = `${dayIndex}-${slot}`;
         if (appliedSlots.has(key)) continue;
         try {
-          await planMeal(dateISO, slot, { id: null, name: meal.name, emoji: meal.emoji });
+          const mealId = await ensureMealInLibrary(meal, slot, cache);
+          await planMeal(dateISO, slot, { id: mealId, name: meal.name, emoji: meal.emoji });
           setAppliedSlots((prev) => new Set(prev).add(key));
         } catch {
           // continue with next
@@ -228,11 +255,11 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
   };
 
   const handleAddMeal = async () => {
-    if (!newMeal.name.trim()) return;
-    
+    if (!newMeal.name.trim() || newMeal.mealTypes.length === 0) return;
+
     try {
-      await addSavedMeal(newMeal.name, newMeal.emoji, newMeal.notes);
-      setNewMeal({ name: '', emoji: '🍽️', notes: '' });
+      await addSavedMeal(newMeal.name, newMeal.emoji, newMeal.notes, newMeal.mealTypes);
+      setNewMeal({ name: '', emoji: '🍽️', notes: '', mealTypes: ['lunch', 'dinner'] });
       setShowAddMealModal(false);
       toast.success('Meal added successfully!');
     } catch (error: any) {
@@ -1054,6 +1081,36 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                 </div>
                 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Good for</label>
+                  <div className="flex gap-2">
+                    {['breakfast', 'lunch', 'dinner'].map((type) => {
+                      const selected = newMeal.mealTypes.includes(type);
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() =>
+                            setNewMeal({
+                              ...newMeal,
+                              mealTypes: selected
+                                ? newMeal.mealTypes.filter((t) => t !== type)
+                                : [...newMeal.mealTypes, type],
+                            })
+                          }
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+                            selected
+                              ? 'bg-blue-100 text-blue-700 border-2 border-blue-400'
+                              : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Notes (Optional)</label>
                   <textarea
                     value={newMeal.notes}
@@ -1074,7 +1131,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                 </button>
                 <button
                   onClick={handleAddMeal}
-                  disabled={!newMeal.name.trim()}
+                  disabled={!newMeal.name.trim() || newMeal.mealTypes.length === 0}
                   className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Add Meal

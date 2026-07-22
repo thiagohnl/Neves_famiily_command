@@ -33,9 +33,10 @@ export function useSavedMeals() {
     }
   }
 
-  async function add(name: string, emoji?: string, notes?: string) {
-    const created = await createSavedMeal({ name, emoji, notes });
+  async function add(name: string, emoji?: string, notes?: string, mealTypes?: string[]) {
+    const created = await createSavedMeal({ name, emoji, notes, meal_types: mealTypes });
     setItems((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+    return created;
   }
   
   async function remove(id: string) {
