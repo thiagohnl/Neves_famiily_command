@@ -1,7 +1,7 @@
 // src/components/ScanPantryModal.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Camera, Upload, Trash2, Sparkles, RotateCcw, Mic, Square } from 'lucide-react';
+import { X, Camera, Upload, Trash2, Sparkles, RotateCcw, Mic, Square, Scissors } from 'lucide-react';
 import { scanGroceriesPhoto, parseGroceriesText, type ScannedPantryItem } from '../lib/aiApi';
 import {
   PANTRY_LOCATIONS,
@@ -51,6 +51,7 @@ export const ScanPantryModal: React.FC<ScanPantryModalProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const nextKeyRef = useRef(1000);
 
   const speechSupported = getSpeechRecognition() !== null;
 
@@ -183,6 +184,43 @@ export const ScanPantryModal: React.FC<ScanPantryModalProps> = ({
 
   function removeItem(key: number) {
     setItems((prev) => prev.filter((it) => it.key !== key));
+  }
+
+  function setAllLocations(location: PantryLocation) {
+    setItems((prev) => prev.map((it) => ({ ...it, location })));
+  }
+
+  // Split a row in two (e.g. bought 2kg of mince, freezing half).
+  // The new half defaults to the freezer since that's the usual reason to split.
+  function splitItem(key: number) {
+    setItems((prev) => {
+      const idx = prev.findIndex((it) => it.key === key);
+      if (idx < 0) return prev;
+      const it = prev[idx];
+
+      let keepQty = it.quantity;
+      let splitQty = it.quantity;
+      if (it.quantity > 1) {
+        if (Number.isInteger(it.quantity)) {
+          keepQty = Math.ceil(it.quantity / 2);
+          splitQty = it.quantity - keepQty;
+        } else {
+          keepQty = Math.round((it.quantity / 2) * 10) / 10;
+          splitQty = Math.round((it.quantity - keepQty) * 10) / 10;
+        }
+      }
+
+      const copy: ReviewItem = {
+        ...it,
+        key: nextKeyRef.current++,
+        quantity: splitQty,
+        location: it.location === 'freezer' ? 'fridge' : 'freezer',
+      };
+      const next = [...prev];
+      next[idx] = { ...it, quantity: keepQty };
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
   }
 
   function handleCategoryChange(key: number, category: string) {
@@ -409,6 +447,19 @@ export const ScanPantryModal: React.FC<ScanPantryModalProps> = ({
                     </button>
                   </div>
 
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">Send all to:</span>
+                    {PANTRY_LOCATIONS.map((loc) => (
+                      <button
+                        key={loc}
+                        onClick={() => setAllLocations(loc)}
+                        className="flex-1 px-2 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-purple-100 hover:text-purple-700 dark:hover:bg-purple-900 dark:hover:text-purple-200 transition-colors"
+                      >
+                        {LOCATION_EMOJIS[loc]} {LOCATION_LABELS[loc]}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="space-y-2">
                     {items.map((it) => (
                       <div
@@ -423,6 +474,13 @@ export const ScanPantryModal: React.FC<ScanPantryModalProps> = ({
                             onChange={(e) => updateItem(it.key, { name: e.target.value })}
                             className="flex-1 min-w-0 px-2 py-1.5 border rounded-lg text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-400"
                           />
+                          <button
+                            onClick={() => splitItem(it.key)}
+                            title="Split in two (e.g. freeze half)"
+                            className="p-1.5 hover:bg-purple-100 dark:hover:bg-purple-900 rounded transition-colors"
+                          >
+                            <Scissors size={14} className="text-purple-400" />
+                          </button>
                           <button
                             onClick={() => removeItem(it.key)}
                             className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
