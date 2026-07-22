@@ -15,6 +15,7 @@ import { useMealQuest } from '../hooks/useMealQuest';
 import { MealQuestCard } from './MealQuestCard';
 import { EditSavedMealDialog } from './EditSavedMealDialog';
 import { PlannedMealPopover } from './PlannedMealPopover';
+import { CookedMealModal } from './CookedMealModal';
 import { updateSavedMeal, deletePlannedMeal, changePlannedMealSlot, copyWeekPlan, clearWeekPlan } from '../lib/mealsApi';
 import { MealPickerModal } from './MealPickerModal';
 import { PantryPanel } from './PantryPanel';
@@ -41,6 +42,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
   const [mealTypeFilter, setMealTypeFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner'>('all');
   const [editingMeal, setEditingMeal] = useState<any>(null);
   const [plannedMealPopover, setPlannedMealPopover] = useState<{ date: string; slot: MealSlot; meal: any; position: { top: number; left: number } } | null>(null);
+  const [cookedMealName, setCookedMealName] = useState<string | null>(null);
   const [mealPickerTarget, setMealPickerTarget] = useState<{ date: string; slot: MealSlot; dateLabel: string } | null>(null);
   const [mealsSubTab, setMealsSubTab] = useState<'planner' | 'pantry' | 'grocery'>('planner');
 
@@ -1202,9 +1204,19 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           onRemove={() => {
             handleRemovePlannedMeal(plannedMealPopover.date, plannedMealPopover.slot);
           }}
+          onCooked={() => {
+            setCookedMealName(plannedMealPopover.meal.meal_name);
+          }}
           position={plannedMealPopover.position}
         />
       )}
+
+      {/* Cooked Meal — pantry deduction */}
+      <CookedMealModal
+        open={cookedMealName !== null}
+        mealName={cookedMealName ?? ''}
+        onClose={() => setCookedMealName(null)}
+      />
 
       {/* AI Meal Suggestions Modal */}
       <AIMealSuggestions

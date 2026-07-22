@@ -74,6 +74,31 @@ export async function parseGroceriesText(text: string): Promise<ScannedPantryIte
   return requestScan({ text });
 }
 
+export interface MealDeduction {
+  id: string;
+  name: string;
+  quantity: number;
+}
+
+export async function getCookedMealDeductions(
+  mealName: string,
+  pantryItems: { id: string; name: string; quantity: number; unit: string; location: string }[]
+): Promise<MealDeduction[]> {
+  const res = await fetch('/api/cook-meal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mealName, pantryItems }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `Request failed (${res.status})`);
+  }
+
+  const data = await res.json();
+  return (data.deductions ?? []) as MealDeduction[];
+}
+
 export async function getAIMealSuggestions(context: {
   pantryItems: any[];
   savedMeals: any[];

@@ -210,6 +210,33 @@ export async function adjustPantryQuantity(id: string, delta: number) {
   return data as PantryItem;
 }
 
+// -------- Bulk deduct (after cooking a meal) --------
+
+export async function deductPantryQuantities(deductions: { id: string; quantity: number }[]) {
+  const updated: PantryItem[] = [];
+  for (const { id, quantity } of deductions) {
+    const { data: current, error: getErr } = await supabase
+      .from('pantry_items')
+      .select('quantity')
+      .eq('id', id)
+      .eq('family_id', FAMILY_ID)
+      .single();
+    if (getErr) throw getErr;
+
+    const newQty = Math.max(0, (current?.quantity ?? 0) - quantity);
+    const { data, error } = await supabase
+      .from('pantry_items')
+      .update({ quantity: newQty, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('family_id', FAMILY_ID)
+      .select()
+      .single();
+    if (error) throw error;
+    updated.push(data as PantryItem);
+  }
+  return updated;
+}
+
 // -------- Expiring Soon --------
 
 export async function getExpiringSoon(withinDays: number = 5) {

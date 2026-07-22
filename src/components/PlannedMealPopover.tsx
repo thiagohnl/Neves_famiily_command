@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard as Edit, Trash2, MoveHorizontal } from 'lucide-react';
+import { CreditCard as Edit, Trash2, MoveHorizontal, ChefHat } from 'lucide-react';
 import { MealSlot } from '../lib/mealsApi';
 
 interface PlannedMealPopoverProps {
@@ -11,6 +11,7 @@ interface PlannedMealPopoverProps {
   onClose: () => void;
   onChangeSlot: (newSlot: MealSlot) => void;
   onRemove: () => void;
+  onCooked?: () => void;
   position?: { top: number; left: number };
 }
 
@@ -22,6 +23,7 @@ export const PlannedMealPopover: React.FC<PlannedMealPopoverProps> = ({
   onClose,
   onChangeSlot,
   onRemove,
+  onCooked,
   position,
 }) => {
   const [showSlotSelector, setShowSlotSelector] = useState(false);
@@ -53,6 +55,19 @@ export const PlannedMealPopover: React.FC<PlannedMealPopoverProps> = ({
 
             {!showSlotSelector ? (
               <>
+                {onCooked && (
+                  <button
+                    onClick={() => {
+                      onCooked();
+                      onClose();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50 rounded transition-colors"
+                  >
+                    <ChefHat size={16} />
+                    <span>Cooked It — update pantry</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowSlotSelector(true)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded transition-colors"
