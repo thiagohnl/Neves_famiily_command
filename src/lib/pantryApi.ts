@@ -70,26 +70,86 @@ export async function addPantryItem(input: PantryItemInput) {
   return data as PantryItem;
 }
 
-export async function addPantryItemsBulk(inputs: PantryItemInput[]) {
-  if (inputs.length === 0) return [];
-  const rows = inputs.map((input) => ({
-    family_id: FAMILY_ID,
-    name: input.name,
-    emoji: input.emoji ?? '🥫',
-    category: input.category ?? null,
-    location: input.location ?? 'cupboard',
-    quantity: input.quantity ?? 1,
-    unit: input.unit ?? 'item',
-    expiry_date: input.expiry_date ?? null,
-    notes: input.notes ?? null,
-  }));
+export interface BulkAddResult {
+  created: PantryItem[];
+  updated: PantryItem[];
+}
 
-  const { data, error } = await supabase
-    .from('pantry_items')
-    .insert(rows)
-    .select();
-  if (error) throw error;
-  return (data ?? []) as PantryItem[];
+function mergeKey(name: string, location: string, unit: string) {
+  return `${name.trim().toLowerCase()}|${location}|${unit}`;
+}
+
+// Adds many items at once. Items matching an existing pantry entry
+// (same name, location and unit) increment its quantity instead of
+// creating a duplicate row.
+export async function addPantryItemsBulk(inputs: PantryItemInput[]): Promise<BulkAddResult> {
+  if (inputs.length === 0) return { created: [], updated: [] };
+
+  const existing = await listPantryItems();
+  const existingByKey = new Map(
+    existing.map((it) => [mergeKey(it.name, it.location, it.unit), it])
+  );
+
+  const increments = new Map<string, { item: PantryItem; addQty: number }>();
+  const pendingInserts = new Map<string, Record<string, any>>();
+
+  for (const input of inputs) {
+    const location = input.location ?? 'cupboard';
+    const unit = input.unit ?? 'item';
+    const qty = input.quantity ?? 1;
+    const key = mergeKey(input.name, location, unit);
+
+    const match = existingByKey.get(key);
+    if (match) {
+      const inc = increments.get(match.id);
+      increments.set(match.id, { item: match, addQty: (inc?.addQty ?? 0) + qty });
+      continue;
+    }
+
+    const pending = pendingInserts.get(key);
+    if (pending) {
+      pending.quantity += qty;
+      continue;
+    }
+
+    pendingInserts.set(key, {
+      family_id: FAMILY_ID,
+      name: input.name,
+      emoji: input.emoji ?? '🥫',
+      category: input.category ?? null,
+      location,
+      quantity: qty,
+      unit,
+      expiry_date: input.expiry_date ?? null,
+      notes: input.notes ?? null,
+    });
+  }
+
+  let created: PantryItem[] = [];
+  const rows = Array.from(pendingInserts.values());
+  if (rows.length > 0) {
+    const { data, error } = await supabase
+      .from('pantry_items')
+      .insert(rows)
+      .select();
+    if (error) throw error;
+    created = (data ?? []) as PantryItem[];
+  }
+
+  const updated: PantryItem[] = [];
+  for (const { item, addQty } of increments.values()) {
+    const { data, error } = await supabase
+      .from('pantry_items')
+      .update({ quantity: item.quantity + addQty, updated_at: new Date().toISOString() })
+      .eq('id', item.id)
+      .eq('family_id', FAMILY_ID)
+      .select()
+      .single();
+    if (error) throw error;
+    updated.push(data as PantryItem);
+  }
+
+  return { created, updated };
 }
 
 // -------- Update --------

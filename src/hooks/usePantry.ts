@@ -37,11 +37,18 @@ export function usePantry(location?: PantryLocation) {
   }
 
   async function addBulk(inputs: PantryItemInput[]) {
-    const created = await addPantryItemsBulk(inputs);
+    const result = await addPantryItemsBulk(inputs);
     // Items scanned for another location shouldn't appear in a filtered tab
-    const visible = location ? created.filter((it) => it.location === location) : created;
-    setItems((prev) => [...prev, ...visible].sort((a, b) => a.name.localeCompare(b.name)));
-    return created;
+    const visible = location
+      ? result.created.filter((it) => it.location === location)
+      : result.created;
+    const updatedById = new Map(result.updated.map((it) => [it.id, it]));
+    setItems((prev) =>
+      [...prev.map((it) => updatedById.get(it.id) ?? it), ...visible].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+    );
+    return result;
   }
 
   async function update(id: string, input: Partial<PantryItemInput>) {

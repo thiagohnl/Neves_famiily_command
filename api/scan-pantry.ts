@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const systemPrompt = `You are a grocery scanning assistant for a family pantry app. You will receive either a photo of groceries (items on a counter, in bags, a receipt, or an open fridge/freezer/cupboard) or a spoken/typed description of groceries (dictated while unpacking, possibly rambling and in any language). Identify every distinct food or household grocery item.
 
 For each item return:
-- "name": short generic product name, capitalized (e.g. "Frozen Peas", "Chicken Breast", "Penne Pasta"). No brand names unless needed to identify the item.
+- "name": short generic product name, capitalized (e.g. "Frozen Peas", "Chicken Breast", "Penne Pasta"). No brand names unless needed to identify the item. Never include size or packaging descriptors in the name ("Small Can", "500g", "Jar") — express those through quantity and unit so the same product always gets the same name.
 - "emoji": a single emoji that best represents the item.
 - "category": one of exactly: dairy, meat, poultry, fish, vegetables, fruit, grains, pasta, canned, condiments, spices, snacks, drinks, baking, frozen, other.
 - "location": where this item is normally stored — one of exactly: fridge, freezer, cupboard. Frozen goods go to freezer; fresh dairy/meat/produce to fridge; dry, canned and shelf-stable goods to cupboard.

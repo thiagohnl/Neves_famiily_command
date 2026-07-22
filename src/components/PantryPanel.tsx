@@ -70,8 +70,14 @@ export const PantryPanel: React.FC<PantryPanelProps> = ({ isParentMode, onAddToG
 
   async function handleAddBulk(inputs: PantryItemInput[]) {
     try {
-      const created = await addBulk(inputs);
-      toast.success(`Added ${created.length} item${created.length === 1 ? '' : 's'} to pantry!`);
+      const { created, updated } = await addBulk(inputs);
+      const msg =
+        created.length > 0 && updated.length > 0
+          ? `Added ${created.length} new, topped up ${updated.length} existing!`
+          : created.length > 0
+            ? `Added ${created.length} item${created.length === 1 ? '' : 's'} to pantry!`
+            : `Topped up ${updated.length} existing item${updated.length === 1 ? '' : 's'}!`;
+      toast.success(msg);
     } catch {
       toast.error('Failed to add items');
       throw new Error('bulk add failed');
