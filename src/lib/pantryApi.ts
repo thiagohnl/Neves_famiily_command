@@ -70,6 +70,28 @@ export async function addPantryItem(input: PantryItemInput) {
   return data as PantryItem;
 }
 
+export async function addPantryItemsBulk(inputs: PantryItemInput[]) {
+  if (inputs.length === 0) return [];
+  const rows = inputs.map((input) => ({
+    family_id: FAMILY_ID,
+    name: input.name,
+    emoji: input.emoji ?? '🥫',
+    category: input.category ?? null,
+    location: input.location ?? 'cupboard',
+    quantity: input.quantity ?? 1,
+    unit: input.unit ?? 'item',
+    expiry_date: input.expiry_date ?? null,
+    notes: input.notes ?? null,
+  }));
+
+  const { data, error } = await supabase
+    .from('pantry_items')
+    .insert(rows)
+    .select();
+  if (error) throw error;
+  return (data ?? []) as PantryItem[];
+}
+
 // -------- Update --------
 
 export async function updatePantryItem(id: string, input: Partial<PantryItemInput>) {

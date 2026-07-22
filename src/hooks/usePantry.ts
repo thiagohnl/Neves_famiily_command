@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   listPantryItems,
   addPantryItem,
+  addPantryItemsBulk,
   updatePantryItem,
   deletePantryItem,
   adjustPantryQuantity,
@@ -35,6 +36,14 @@ export function usePantry(location?: PantryLocation) {
     return created;
   }
 
+  async function addBulk(inputs: PantryItemInput[]) {
+    const created = await addPantryItemsBulk(inputs);
+    // Items scanned for another location shouldn't appear in a filtered tab
+    const visible = location ? created.filter((it) => it.location === location) : created;
+    setItems((prev) => [...prev, ...visible].sort((a, b) => a.name.localeCompare(b.name)));
+    return created;
+  }
+
   async function update(id: string, input: Partial<PantryItemInput>) {
     const updated = await updatePantryItem(id, input);
     setItems((prev) => prev.map((it) => (it.id === id ? updated : it)));
@@ -56,7 +65,7 @@ export function usePantry(location?: PantryLocation) {
     refetch();
   }, [location]);
 
-  return { items, loading, error, refetch, add, update, remove, adjustQty };
+  return { items, loading, error, refetch, add, addBulk, update, remove, adjustQty };
 }
 
 export function useExpiringSoon(withinDays: number = 5) {

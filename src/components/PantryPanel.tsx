@@ -1,9 +1,10 @@
 // src/components/PantryPanel.tsx
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, Trash2, AlertTriangle, Search, ShoppingCart } from 'lucide-react';
+import { Plus, Minus, Trash2, AlertTriangle, Search, ShoppingCart, Camera, Mic } from 'lucide-react';
 import { usePantry } from '../hooks/usePantry';
 import { AddPantryItemModal } from './AddPantryItemModal';
+import { ScanPantryModal } from './ScanPantryModal';
 import {
   PANTRY_LOCATIONS,
   LOCATION_LABELS,
@@ -11,7 +12,7 @@ import {
   CATEGORY_EMOJIS,
   type PantryLocation,
 } from '../constants/pantry';
-import type { PantryItem } from '../lib/pantryApi';
+import type { PantryItem, PantryItemInput } from '../lib/pantryApi';
 import toast from 'react-hot-toast';
 import dayjs from 'dayjs';
 
@@ -23,10 +24,11 @@ interface PantryPanelProps {
 export const PantryPanel: React.FC<PantryPanelProps> = ({ isParentMode, onAddToGrocery }) => {
   const [activeTab, setActiveTab] = useState<PantryLocation | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [scanMode, setScanMode] = useState<'photo' | 'voice' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const location = activeTab === 'all' ? undefined : activeTab;
-  const { items, loading, add, adjustQty, remove } = usePantry(location);
+  const { items, loading, add, addBulk, adjustQty, remove } = usePantry(location);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return items;
@@ -66,6 +68,16 @@ export const PantryPanel: React.FC<PantryPanelProps> = ({ isParentMode, onAddToG
     }
   }
 
+  async function handleAddBulk(inputs: PantryItemInput[]) {
+    try {
+      const created = await addBulk(inputs);
+      toast.success(`Added ${created.length} item${created.length === 1 ? '' : 's'} to pantry!`);
+    } catch {
+      toast.error('Failed to add items');
+      throw new Error('bulk add failed');
+    }
+  }
+
   async function handleAdjustQty(id: string, delta: number) {
     try {
       await adjustQty(id, delta);
@@ -89,12 +101,28 @@ export const PantryPanel: React.FC<PantryPanelProps> = ({ isParentMode, onAddToG
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold dark:text-white">Pantry Stock</h3>
         {isParentMode && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Plus size={16} /> Add Item
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setScanMode('photo')}
+              title="Scan groceries with camera"
+              className="flex items-center px-2.5 py-1.5 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
+            >
+              <Camera size={16} />
+            </button>
+            <button
+              onClick={() => setScanMode('voice')}
+              title="Add groceries by voice"
+              className="flex items-center px-2.5 py-1.5 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors"
+            >
+              <Mic size={16} />
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Plus size={16} /> Add Item
+            </button>
+          </div>
         )}
       </div>
 
@@ -232,6 +260,14 @@ export const PantryPanel: React.FC<PantryPanelProps> = ({ isParentMode, onAddToG
           ))}
         </div>
       )}
+
+      {/* Scan / Voice Modal */}
+      <ScanPantryModal
+        open={scanMode !== null}
+        onClose={() => setScanMode(null)}
+        onAddBulk={handleAddBulk}
+        initialMode={scanMode ?? 'photo'}
+      />
 
       {/* Add Modal */}
       <AddPantryItemModal
