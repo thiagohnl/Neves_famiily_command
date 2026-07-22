@@ -100,15 +100,15 @@ Return ONLY valid JSON in this exact format (no markdown, no code fences):
       ],
     });
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
 
     // Parse the JSON response
     let parsed;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(responseText);
     } catch {
       // Try to extract JSON from the response if it has extra text
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[0]);
       } else {
