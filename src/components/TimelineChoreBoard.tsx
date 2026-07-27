@@ -26,10 +26,12 @@ const TodaysMeals: React.FC = () => {
   const { lunch, dinner, loading } = useTodayMeal();
   if (loading) return <div className="text-orange-700 text-base">Loading...</div>;
   if (!lunch && !dinner) return <div className="text-orange-700 text-base">No meals planned</div>;
+  const withSides = (meal: any) =>
+    meal.meal_name + (meal.sides?.length ? ` + ${meal.sides.join(', ')}` : '');
   return (
     <div className="space-y-1">
-      {lunch && <div className="text-sm font-medium text-orange-800">🍽️ Lunch: {lunch.meal_name}</div>}
-      {dinner && <div className="text-sm font-medium text-orange-800">🍽️ Dinner: {dinner.meal_name}</div>}
+      {lunch && <div className="text-sm font-medium text-orange-800">🍽️ Lunch: {withSides(lunch)}</div>}
+      {dinner && <div className="text-sm font-medium text-orange-800">🍽️ Dinner: {withSides(dinner)}</div>}
     </div>
   );
 };

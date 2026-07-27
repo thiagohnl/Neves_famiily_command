@@ -154,13 +154,16 @@ export async function planMeal(date: string, slot: MealSlot, meal: { id: string 
     saved_meal_id: data.meal_id,
     meal_name: data.meal_name || meal.name,
     meal_emoji: data.meal_emoji || meal.emoji || '🍽️',
+    // sides are deliberately absent from the upsert payload: the partial
+    // ON CONFLICT update leaves the existing value untouched
+    sides: data.sides ?? [],
   };
 }
 
 export async function getPlannedWeek(startISO: string, endISO: string) {
   const { data, error } = await supabase
     .from('meal_plans')
-    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, saved_meals:meal_id(id,name,emoji)')
+    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, sides, saved_meals:meal_id(id,name,emoji)')
     .gte('date', startISO)
     .lte('date', endISO)
     .order('date', { ascending: true });
@@ -175,7 +178,20 @@ export async function getPlannedWeek(startISO: string, endISO: string) {
     saved_meal_id: item.meal_id,
     meal_name: item.saved_meals?.name || item.meal_name || 'Unknown Meal',
     meal_emoji: item.meal_emoji || item.saved_meals?.emoji || '🍽️',
+    sides: item.sides ?? [],
   }));
+}
+
+export async function updatePlannedMealSides(date: string, slot: MealSlot, sides: string[]) {
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .update({ sides })
+    .eq('date', date)
+    .eq('meal_type', slot)
+    .select('sides')
+    .single();
+  if (error) throw error;
+  return (data?.sides ?? []) as string[];
 }
 
 export async function deletePlannedMeal(date: string, slot: MealSlot) {
@@ -190,7 +206,7 @@ export async function deletePlannedMeal(date: string, slot: MealSlot) {
 export async function changePlannedMealSlot(date: string, oldSlot: MealSlot, newSlot: MealSlot) {
   const { data: existing, error: fetchError } = await supabase
     .from('meal_plans')
-    .select('meal_id, meal_emoji')
+    .select('meal_id, meal_name, meal_emoji, sides')
     .eq('date', date)
     .eq('meal_type', oldSlot)
     .maybeSingle();
@@ -204,6 +220,8 @@ export async function changePlannedMealSlot(date: string, oldSlot: MealSlot, new
     date,
     meal_type: newSlot,
     meal_id: existing.meal_id,
+    meal_name: existing.meal_name,
+    sides: existing.sides ?? [],
   };
 
   if (existing.meal_emoji) {
@@ -220,7 +238,7 @@ export async function changePlannedMealSlot(date: string, oldSlot: MealSlot, new
 export async function getTodayPlan(todayISO: string) {
   const { data, error } = await supabase
     .from('meal_plans')
-    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, saved_meals:meal_id(id,name,emoji)')
+    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, sides, saved_meals:meal_id(id,name,emoji)')
     .eq('date', todayISO);
 
   if (error) throw error;
@@ -233,6 +251,7 @@ export async function getTodayPlan(todayISO: string) {
     saved_meal_id: item.meal_id,
     meal_name: item.saved_meals?.name || item.meal_name || 'Unknown Meal',
     meal_emoji: item.meal_emoji || item.saved_meals?.emoji || '🍽️',
+    sides: item.sides ?? [],
   }));
 }
 
@@ -257,6 +276,7 @@ export async function copyWeekPlan(sourceStartISO: string, sourceEndISO: string,
       meal_id: item.saved_meal_id || null,
       meal_name: item.meal_name,
       meal_emoji: item.meal_emoji,
+      sides: item.sides ?? [],
     };
   });
 

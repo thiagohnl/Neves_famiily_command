@@ -16,7 +16,7 @@ import { MealQuestCard } from './MealQuestCard';
 import { EditSavedMealDialog } from './EditSavedMealDialog';
 import { PlannedMealPopover } from './PlannedMealPopover';
 import { CookedMealModal } from './CookedMealModal';
-import { updateSavedMeal, deletePlannedMeal, changePlannedMealSlot, copyWeekPlan, clearWeekPlan } from '../lib/mealsApi';
+import { updateSavedMeal, deletePlannedMeal, changePlannedMealSlot, copyWeekPlan, clearWeekPlan, updatePlannedMealSides } from '../lib/mealsApi';
 import { MealPickerModal } from './MealPickerModal';
 import { PantryPanel } from './PantryPanel';
 import { GroceryList } from './GroceryList';
@@ -41,7 +41,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
   const [showConfetti, setShowConfetti] = useState(false);
   const [mealTypeFilter, setMealTypeFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner'>('all');
   const [editingMeal, setEditingMeal] = useState<any>(null);
-  const [plannedMealPopover, setPlannedMealPopover] = useState<{ date: string; slot: MealSlot; meal: any; position: { top: number; left: number } } | null>(null);
+  const [plannedMealPopover, setPlannedMealPopover] = useState<{ date: string; slot: MealSlot; meal: any; position: { top: number; left: number }; initialView?: 'menu' | 'addSide' } | null>(null);
   const [cookedMealName, setCookedMealName] = useState<string | null>(null);
   const [mealPickerTarget, setMealPickerTarget] = useState<{ date: string; slot: MealSlot; dateLabel: string } | null>(null);
   const [mealsSubTab, setMealsSubTab] = useState<'planner' | 'pantry' | 'grocery'>('planner');
@@ -408,6 +408,31 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
     } catch (error: any) {
       console.error('Failed to change slot:', error);
       toast.error('Failed to change slot');
+    }
+  };
+
+  // Sides live on the planned row; always read from live week data, not the popover snapshot
+  const getPlannedSides = (date: string, slot: MealSlot): string[] =>
+    plannedMeals.find((r: any) => r.date === date && r.slot === slot)?.sides ?? [];
+
+  const handleAddSide = async (date: string, slot: MealSlot, side: string) => {
+    try {
+      await updatePlannedMealSides(date, slot, [...getPlannedSides(date, slot), side]);
+      refetchWeekPlan();
+      toast.success(`Added ${side}!`);
+    } catch (error: any) {
+      console.error('Failed to add side:', error);
+      toast.error('Failed to add side dish');
+    }
+  };
+
+  const handleRemoveSide = async (date: string, slot: MealSlot, index: number) => {
+    try {
+      await updatePlannedMealSides(date, slot, getPlannedSides(date, slot).filter((_, i) => i !== index));
+      refetchWeekPlan();
+    } catch (error: any) {
+      console.error('Failed to remove side:', error);
+      toast.error('Failed to remove side dish');
     }
   };
 
@@ -785,7 +810,24 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                             </span>
                           )}
                         </div>
+                        {(dayPlan.breakfast.sides?.length ?? 0) > 0 && (
+                          <span className="mt-1 text-[11px] text-gray-500 line-clamp-1">+ {dayPlan.breakfast.sides.join(', ')}</span>
+                        )}
                       </div>
+                      {isParentMode && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const cell = (e.currentTarget as HTMLElement).closest('[data-slot]') as HTMLElement | null;
+                            const rect = (cell ?? e.currentTarget).getBoundingClientRect();
+                            setPlannedMealPopover({ date: dateISO, slot: 'breakfast', meal: dayPlan.breakfast, position: { top: rect.bottom + 5, left: rect.left }, initialView: 'addSide' });
+                          }}
+                          className="absolute top-2 left-2 p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
+                          aria-label="Add side dish"
+                        >
+                          <Plus size={14} className="text-blue-500" />
+                        </button>
+                      )}
                       {dayPlan.breakfast.saved_meal_id && (
                         <button
                           onClick={(e) => {
@@ -855,7 +897,24 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                             </span>
                           )}
                         </div>
+                        {(dayPlan.lunch.sides?.length ?? 0) > 0 && (
+                          <span className="mt-1 text-[11px] text-gray-500 line-clamp-1">+ {dayPlan.lunch.sides.join(', ')}</span>
+                        )}
                       </div>
+                      {isParentMode && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const cell = (e.currentTarget as HTMLElement).closest('[data-slot]') as HTMLElement | null;
+                            const rect = (cell ?? e.currentTarget).getBoundingClientRect();
+                            setPlannedMealPopover({ date: dateISO, slot: 'lunch', meal: dayPlan.lunch, position: { top: rect.bottom + 5, left: rect.left }, initialView: 'addSide' });
+                          }}
+                          className="absolute top-2 left-2 p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
+                          aria-label="Add side dish"
+                        >
+                          <Plus size={14} className="text-blue-500" />
+                        </button>
+                      )}
                       {dayPlan.lunch.saved_meal_id && (
                         <button
                           onClick={(e) => {
@@ -925,7 +984,24 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                             </span>
                           )}
                         </div>
+                        {(dayPlan.dinner.sides?.length ?? 0) > 0 && (
+                          <span className="mt-1 text-[11px] text-gray-500 line-clamp-1">+ {dayPlan.dinner.sides.join(', ')}</span>
+                        )}
                       </div>
+                      {isParentMode && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const cell = (e.currentTarget as HTMLElement).closest('[data-slot]') as HTMLElement | null;
+                            const rect = (cell ?? e.currentTarget).getBoundingClientRect();
+                            setPlannedMealPopover({ date: dateISO, slot: 'dinner', meal: dayPlan.dinner, position: { top: rect.bottom + 5, left: rect.left }, initialView: 'addSide' });
+                          }}
+                          className="absolute top-2 left-2 p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
+                          aria-label="Add side dish"
+                        >
+                          <Plus size={14} className="text-blue-500" />
+                        </button>
+                      )}
                       {dayPlan.dinner.saved_meal_id && (
                         <button
                           onClick={(e) => {
@@ -1253,6 +1329,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           date={plannedMealPopover.date}
           currentSlot={plannedMealPopover.slot}
           mealName={plannedMealPopover.meal.meal_name}
+          sides={getPlannedSides(plannedMealPopover.date, plannedMealPopover.slot)}
           isOpen={!!plannedMealPopover}
           onClose={() => setPlannedMealPopover(null)}
           onChangeSlot={(newSlot) => {
@@ -1262,8 +1339,17 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
             handleRemovePlannedMeal(plannedMealPopover.date, plannedMealPopover.slot);
           }}
           onCooked={() => {
-            setCookedMealName(plannedMealPopover.meal.meal_name);
+            // Include sides so the AI pantry deduction accounts for them
+            const sides = getPlannedSides(plannedMealPopover.date, plannedMealPopover.slot);
+            setCookedMealName(plannedMealPopover.meal.meal_name + (sides.length ? ` + ${sides.join(', ')}` : ''));
           }}
+          onAddSide={(side) => {
+            handleAddSide(plannedMealPopover.date, plannedMealPopover.slot, side);
+          }}
+          onRemoveSide={(index) => {
+            handleRemoveSide(plannedMealPopover.date, plannedMealPopover.slot, index);
+          }}
+          initialView={plannedMealPopover.initialView}
           position={plannedMealPopover.position}
         />
       )}

@@ -14,7 +14,9 @@ export type MealPlanRow = {
   meal_id: string | null;
   date: string;
   meal_type: MealType;
+  meal_name: string | null;
   meal_emoji: string | null;
+  sides: string[] | null;
   created_at: string;
   updated_at: string | null;
 };

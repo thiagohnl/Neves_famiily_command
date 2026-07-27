@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS meal_plans (
   meal_type text NOT NULL CHECK (meal_type IN ('breakfast', 'lunch', 'dinner')),
   meal_name text,
   meal_emoji text,
+  sides text[] DEFAULT '{}',
   created_at timestamptz DEFAULT now(),
   CONSTRAINT meal_plans_date_meal_type_unique UNIQUE (date, meal_type)
 );
