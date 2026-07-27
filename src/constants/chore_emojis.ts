@@ -257,6 +257,58 @@ export const CHORE_EMOJI_CATEGORIES = {
 
 export const ALL_CHORE_EMOJIS = Object.values(CHORE_EMOJI_CATEGORIES).flatMap(category => category.emojis);
 
+// Auto-suggest an emoji from the chore name, English and Portuguese.
+// Rules are checked in order, so specific things (cama, sapato) must come
+// before generic verbs (arrumar, limpar). Keywords are written accent-free
+// and matched against an accent-stripped name.
+const SUGGESTION_RULES: Array<[string[], string]> = [
+  [['teeth', 'tooth', 'dente', 'escova'], '🪥'],
+  [['bath', 'banho', 'banheira'], '🛁'],
+  [['shower', 'ducha', 'chuveiro'], '🚿'],
+  [['wash hands', 'lavar as maos', 'maos'], '🧼'],
+  [['hair', 'cabelo'], '💇'],
+  [['bed', 'cama'], '🛏️'],
+  [['pajama', 'pijama'], '🛌'],
+  [['shoe', 'sneaker', 'sapato', 'tenis', 'calcado', 'chinelo'], '👟'],
+  [['sock', 'meia'], '🧦'],
+  [['laundry', 'clothes', 'roupa'], '🧺'],
+  [['dish', 'louca', 'prato'], '🍽️'],
+  [['table', 'mesa'], '🍽️'],
+  [['cook', 'cozinha'], '🍳'],
+  [['groceries', 'compras', 'mercado'], '🍎'],
+  [['trash', 'garbage', 'lixo'], '🗑️'],
+  [['sweep', 'vacuum', 'varrer', 'aspira', 'vassoura', 'floor', 'chao'], '🧹'],
+  [['window', 'janela'], '🪟'],
+  [['toy', 'brinquedo', 'lego'], '🧸'],
+  [['homework', 'licao', 'tarefa', 'estudar', 'study'], '📚'],
+  [['read', 'ler', 'livro', 'book'], '📖'],
+  [['backpack', 'mochila'], '🎒'],
+  [['dog', 'cachorro'], '🐶'],
+  [['cat', 'gato'], '🐱'],
+  [['fish', 'peixe'], '🐟'],
+  [['plant', 'planta', 'regar', 'flores'], '🌱'],
+  [['car', 'carro'], '🚗'],
+  [['mail', 'correio'], '📫'],
+  [['clean', 'limpar', 'limpeza'], '🧽'],
+  [['tidy', 'organizar', 'arrumar', 'guardar', 'put away'], '✨'],
+];
+
+const normalizeName = (name: string) =>
+  name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+export const suggestChoreEmoji = (name: string): string | null => {
+  const normalized = normalizeName(name);
+  for (const [keywords, emoji] of SUGGESTION_RULES) {
+    if (keywords.some(k => normalized.includes(k))) return emoji;
+  }
+  return null;
+};
+
+// Display helper: chores saved with the generic clipboard get a real emoji
+// derived from their name, so pre-readers can recognize the task.
+export const getChoreEmoji = (chore: { name: string; emoji?: string }): string =>
+  chore.emoji && chore.emoji !== '📋' ? chore.emoji : (suggestChoreEmoji(chore.name) || '📋');
+
 export const searchChoreEmojis = (query: string) => {
   if (!query.trim()) return ALL_CHORE_EMOJIS;
 

@@ -8,9 +8,9 @@ export const useChores = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       
       const { data: membersData, error: membersError } = await supabase
@@ -25,9 +25,25 @@ export const useChores = () => {
         .from('chores')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
       if (choresError) throw choresError;
-      setChores(choresData || []);
+
+      // Recurring chores completed on a previous day become pending again today
+      let allChores: Chore[] = choresData || [];
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const staleIds = allChores
+        .filter(c => c.is_completed && (c.recurring_days?.length ?? 0) > 0 && (!c.completed_at || new Date(c.completed_at) < todayStart))
+        .map(c => c.id);
+      if (staleIds.length > 0) {
+        const { error: resetError } = await supabase
+          .from('chores')
+          .update({ is_completed: false, completed_at: null })
+          .in('id', staleIds);
+        if (resetError) throw resetError;
+        allChores = allChores.map(c => staleIds.includes(c.id) ? { ...c, is_completed: false, completed_at: undefined } : c);
+      }
+      setChores(allChores);
       
     } catch (err) {
       console.error('Error loading data from Supabase:', err);
@@ -104,6 +120,10 @@ export const useChores = () => {
   
   useEffect(() => {
     loadData();
+    // The tablet stays open all day: refresh periodically so a new day's
+    // reset (and edits from other devices) show up without a manual reload
+    const interval = setInterval(() => loadData(true), 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   return {

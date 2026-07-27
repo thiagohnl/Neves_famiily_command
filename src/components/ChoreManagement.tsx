@@ -5,7 +5,7 @@ import { FamilyMember, Chore, ChorePoints } from '../types';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { EmojiPicker } from './EmojiPicker';
-import { ALL_CHORE_EMOJIS, searchChoreEmojis } from '../constants/chore_emojis'; // <--- THIS LINE IS THE FIX
+import { ALL_CHORE_EMOJIS, searchChoreEmojis, suggestChoreEmoji, getChoreEmoji } from '../constants/chore_emojis';
 import dayjs from 'dayjs';
 
 // Define the shape of the form data for a new chore
@@ -95,7 +95,13 @@ const ChoreForm = ({
 
   return (
       <div className="space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-2">Chore Name *</label><input type="text" value={chore.name} onChange={(e) => setChore({ ...chore, name: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-2">Chore Name *</label><input type="text" value={chore.name} onChange={(e) => {
+            const name = e.target.value;
+            // Suggest a matching emoji while typing, unless the user picked one themselves
+            const suggestion = suggestChoreEmoji(name);
+            const canAutoSuggest = !chore.emoji_manual && (!isEditing || !chore.emoji || chore.emoji === '📋');
+            setChore({ ...chore, name, ...(canAutoSuggest && suggestion ? { emoji: suggestion } : {}) });
+          }} className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div>
           {!isEditing ? (
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Assign to * (select multiple)</label>
@@ -127,11 +133,11 @@ const ChoreForm = ({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Emoji</label>
-            <EmojiPicker 
-              value={chore.emoji} 
-              onChange={(emoji) => setChore({ ...chore, emoji })} 
-              emojiData={ALL_CHORE_EMOJIS} 
-              searchFunction={searchChoreEmojis} 
+            <EmojiPicker
+              value={chore.emoji}
+              onChange={(emoji) => setChore({ ...chore, emoji, emoji_manual: true })}
+              emojiData={ALL_CHORE_EMOJIS}
+              searchFunction={searchChoreEmojis}
             />
           </div>
           <div className="flex gap-3 pt-4"><button onClick={onCancel} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg">Cancel</button><button onClick={onSave} disabled={isLoading} className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg">{isLoading ? 'Saving...' : 'Save'}</button></div>
@@ -280,7 +286,7 @@ const ChoreManagement: React.FC<ChoreManagementProps> = ({
               <div key={chore.id} className="card">
                   <div>
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3"><div className="text-3xl">{chore.emoji || '📋'}</div><div><h3 className="text-lg font-bold text-gray-800">{chore.name}</h3>{chore.is_completed && (<span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mt-1">✅ Completed</span>)}</div></div>
+                      <div className="flex items-center gap-3"><div className="text-3xl">{getChoreEmoji(chore)}</div><div><h3 className="text-lg font-bold text-gray-800">{chore.name}</h3>{chore.is_completed && (<span className="inline-block bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mt-1">✅ Completed</span>)}</div></div>
                       <div className="flex gap-2">
                         <button onClick={() => setEditingChore(chore)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={16} /></button>
                         <button onClick={() => deleteChore(chore.id, chore.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
