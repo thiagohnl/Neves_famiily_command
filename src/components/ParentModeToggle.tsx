@@ -20,7 +20,7 @@ export const ParentModeToggle: React.FC<ParentModeToggleProps> = ({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onExitParentMode}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg"
+          className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg"
           title="Exit Parent Mode"
         >
           <Shield size={20} />
