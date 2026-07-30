@@ -8,6 +8,7 @@ import { EditFamilyMembers } from './components/EditFamilyMembers';
 import { SettingsModal } from './components/SettingsModal';
 import { ParentAuthModal } from './components/ParentAuthModal';
 import { ParentModeToggle } from './components/ParentModeToggle';
+import { CallFamilyButtons } from './components/CallFamilyButtons';
 
 // Lazy-loaded tab components for code splitting
 const TimelineChoreBoard = React.lazy(() =>
@@ -135,6 +136,7 @@ function App() {
                   </button>
                 );
               })}
+              <CallFamilyButtons />
             </div>
           </div>
         </nav>

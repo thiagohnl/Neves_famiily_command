@@ -5,7 +5,6 @@ import { FamilyMember, Chore, Activity, PlannedActivity } from '../types';
 import { ConfettiCelebration } from './ConfettiCelebration';
 import { TodaysScheduleCard } from './TodaysScheduleCard';
 import { VerseOfTheDayCard } from './VerseOfTheDayCard';
-import { CallFamilyCard } from './CallFamilyCard';
 import { useTodayMeal } from '../hooks/useMeals';
 import { useActivities } from '../hooks/useActivities';
 import { useFunIdeas } from '../hooks/useFunIdeas';
@@ -143,11 +142,6 @@ export const TimelineChoreBoard: React.FC<{
           familyMembers={familyMembers}
         />
         <VerseOfTheDayCard />
-      </motion.div>
-
-      {/* Call Family */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-        <CallFamilyCard />
       </motion.div>
 
       {/* Timeline */}
