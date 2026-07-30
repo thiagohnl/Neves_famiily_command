@@ -2,18 +2,23 @@
 
 ## Purpose
 
-The Board tab is the main dashboard. It presents today's chores on a vertical timeline, shows summary cards for family progress, today's meals, today's fun activity, and today's schedule. Kids can tap "Done!" to complete chores and see a confetti celebration.
+The Board tab is the main dashboard. It presents today's chores on a vertical timeline, shows summary cards for family progress, today's meals, today's fun activity, today's schedule, and the verse of the day, plus a Call Family card so kids can start a WhatsApp call to a relative. Kids can tap "Done!" to complete chores and see a confetti celebration.
 
 ## How It Works
 
 ### Summary Cards
 
-Four cards are rendered at the top in a responsive grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-4`):
+Five cards are rendered at the top in a responsive grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-5`):
 
 1. **Family Progress** -- Shows each family member's avatar, name, and points. Uses gradient `from-purple-100 to-pink-100`.
 2. **Meal of the Day** -- Renders the `TodaysMeals` sub-component which uses the `useTodayMeal` hook to fetch today's meal plan (lunch and dinner). Uses gradient `from-orange-100 to-yellow-100`.
 3. **Today's Fun** -- Renders the `TodaysFun` sub-component, which combines planned activities for today (from `useActivities`) and fun ideas with `scheduled_date` matching today (from `useFunIdeas`). Uses gradient `from-green-100 to-blue-100`.
 4. **Today's Schedule** -- Renders the `TodaysScheduleCard` component, which shows today's schedule events.
+5. **Verse of the Day** -- Renders the `VerseOfTheDayCard` component. Uses gradient `from-blue-100 to-indigo-100`.
+
+### Call Family Card
+
+A full-width card (`CallFamilyCard`) sits between the summary grid and the timeline. Each contact is a large (min 140px tall) `motion.a` button with a photo/emoji, name, and a green "Call" chip. Tapping opens `https://wa.me/<number>`, which hands off to WhatsApp on that contact's chat -- WhatsApp does not allow a web link to dial directly, so the call itself is one more tap inside WhatsApp (intentional; do not attempt auto-call). Contacts are configured in the `CONTACTS` array at the top of `src/components/CallFamilyCard.tsx` (name, digits-only WhatsApp number with country code, optional emoji or image path). Press feedback is `whileTap` scale only -- no hover styles, since the wall tablet is a touch-only Android WebView.
 
 ### Timeline View
 
@@ -129,6 +134,8 @@ Recurring activities are expanded: activities with `recurring_days` matching tod
 | `TimelineChoreBoard` | `src/components/TimelineChoreBoard.tsx` | Main board page |
 | `ConfettiCelebration` | `src/components/ConfettiCelebration.tsx` | Confetti on chore completion |
 | `TodaysScheduleCard` | `src/components/TodaysScheduleCard.tsx` | Schedule summary card |
+| `VerseOfTheDayCard` | `src/components/VerseOfTheDayCard.tsx` | Verse of the day summary card |
+| `CallFamilyCard` | `src/components/CallFamilyCard.tsx` | WhatsApp call buttons for kids |
 | `TodaysMeals` | (inline in TimelineChoreBoard.tsx) | Meal of the day display |
 | `TodaysFun` | (inline in TimelineChoreBoard.tsx) | Fun activity display |
 
