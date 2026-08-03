@@ -18,17 +18,21 @@ const isImage = (photo: string) => photo.startsWith('/') || photo.startsWith('ht
 
 // Compact call pills for the tab bar. Tapping opens the contact's WhatsApp
 // chat — the call button is one tap away there (web links can't dial
-// directly). Uses the whatsapp:// scheme instead of wa.me: inside a kiosk
-// WebView, wa.me just renders WhatsApp's website (app-links don't fire for
-// in-WebView navigations), while an unknown scheme is handed to the OS and
-// opens the app. Touch-only feedback via whileTap; no hover reliance.
+// directly). Uses an Android intent:// URL: inside the kiosk WebView, wa.me
+// just renders WhatsApp's website (app-links don't fire for in-WebView
+// navigations) and a bare whatsapp:// scheme gets silently dropped, but
+// intent URLs are the WebView-sanctioned way to launch an app; the embedded
+// browser_fallback_url falls back to wa.me if the intent is blocked too.
+// Touch-only feedback via whileTap; no hover reliance.
+const whatsappHref = (phone: string) =>
+  `intent://send?phone=${phone}#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=${encodeURIComponent(`https://wa.me/${phone}`)};end`;
 export const CallFamilyButtons: React.FC = () => {
   return (
     <div className="ml-auto flex items-center gap-1.5 pl-2 shrink-0">
       {CONTACTS.map(contact => (
         <motion.a
           key={contact.name}
-          href={`whatsapp://send?phone=${contact.whatsapp}`}
+          href={whatsappHref(contact.whatsapp)}
           whileTap={{ scale: 0.9 }}
           className="shrink-0 flex items-center gap-1.5 bg-green-500 text-white rounded-full pl-1.5 pr-3 py-1 text-sm font-bold"
         >
