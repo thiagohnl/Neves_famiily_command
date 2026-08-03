@@ -8,8 +8,8 @@ import { Phone } from 'lucide-react';
 // photo:    optional — an emoji ('👩') OR an image path/URL ('/contacts/mama.jpg').
 //           Image paths need the file in a `public/` folder at the project root.
 const CONTACTS: { name: string; whatsapp: string; photo?: string }[] = [
-  { name: 'Mama', whatsapp: '00000000000', photo: '👩' },
-  { name: 'Papa', whatsapp: '00000000000', photo: '👨' },
+  { name: 'Mama', whatsapp: '31651054931', photo: '👩' },
+  { name: 'Papa', whatsapp: '31655533898', photo: '👨' },
   { name: 'Vovó', whatsapp: '00000000000', photo: '👵' },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,15 +17,18 @@ const CONTACTS: { name: string; whatsapp: string; photo?: string }[] = [
 const isImage = (photo: string) => photo.startsWith('/') || photo.startsWith('http');
 
 // Compact call pills for the tab bar. Tapping opens the contact's WhatsApp
-// chat via wa.me — the call button is one tap away there (web links can't
-// dial directly). Touch-only feedback via whileTap; no hover reliance.
+// chat — the call button is one tap away there (web links can't dial
+// directly). Uses the whatsapp:// scheme instead of wa.me: inside a kiosk
+// WebView, wa.me just renders WhatsApp's website (app-links don't fire for
+// in-WebView navigations), while an unknown scheme is handed to the OS and
+// opens the app. Touch-only feedback via whileTap; no hover reliance.
 export const CallFamilyButtons: React.FC = () => {
   return (
     <div className="ml-auto flex items-center gap-1.5 pl-2 shrink-0">
       {CONTACTS.map(contact => (
         <motion.a
           key={contact.name}
-          href={`https://wa.me/${contact.whatsapp}`}
+          href={`whatsapp://send?phone=${contact.whatsapp}`}
           whileTap={{ scale: 0.9 }}
           className="shrink-0 flex items-center gap-1.5 bg-green-500 text-white rounded-full pl-1.5 pr-3 py-1 text-sm font-bold"
         >
