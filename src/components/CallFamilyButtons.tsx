@@ -10,7 +10,7 @@ import { Phone } from 'lucide-react';
 const CONTACTS: { name: string; whatsapp: string; photo?: string }[] = [
   { name: 'Mama', whatsapp: '31651054931', photo: '👩' },
   { name: 'Papa', whatsapp: '31655533898', photo: '👨' },
-  { name: 'Vovó', whatsapp: '00000000000', photo: '👵' },
+  { name: 'Vovó', whatsapp: '5569993112283', photo: '👵' },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
