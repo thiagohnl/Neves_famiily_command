@@ -78,6 +78,7 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
       Pick<ScheduleEvent, 'id' | 'title' | 'start_time' | 'end_time' | 'color'> & {
         memberId: string;
         isOngoing: boolean;
+        isPast?: boolean;
         isGoogle?: boolean;
         allDay?: boolean;
       }
@@ -95,6 +96,7 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
               ...event,
               memberId,
               isOngoing,
+              isPast: currentMinutes >= endMinutes,
             });
           });
         }
@@ -108,6 +110,7 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
             ...event,
             memberId,
             isOngoing,
+            isPast: currentMinutes >= endMinutes,
           });
         });
       }
@@ -127,6 +130,7 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
           color: '#4285F4',
           memberId: '__google__',
           isOngoing: !e.allDay && currentMinutes >= startMinutes && currentMinutes < endMinutes,
+          isPast: !e.allDay && currentMinutes >= endMinutes,
           isGoogle: true,
           allDay: e.allDay,
         });
@@ -142,8 +146,8 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
     return scheduledEvents;
   }, [events, googleEvents, today]);
 
-  const displayEvents = todaysEvents.slice(0, 3);
-  const moreCount = Math.max(0, todaysEvents.length - 3);
+  const displayEvents = todaysEvents.slice(0, 5);
+  const moreCount = Math.max(0, todaysEvents.length - 5);
 
   if (loading) {
     return (
@@ -195,21 +199,29 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
               return (
                 <div
                   key={`${event.id}-${event.memberId}`}
-                  className="flex items-start gap-3 text-sm"
+                  className={`flex items-center gap-3 text-sm rounded-lg -mx-2 px-2 py-0.5 ${
+                    event.isOngoing ? 'bg-blue-50' : ''
+                  } ${event.isPast ? 'opacity-40' : ''}`}
                 >
-                  <span className="text-xs text-gray-500 shrink-0 w-20">
+                  <span
+                    className={`text-xs shrink-0 w-20 ${
+                      event.isOngoing ? 'text-blue-600 font-semibold' : 'text-gray-500'
+                    }`}
+                  >
                     {timeRange}
                   </span>
                   <span className="font-medium text-gray-900 truncate flex-1">
                     {event.title}
                   </span>
-                  <span className="text-xs text-gray-600 truncate flex items-center gap-1 shrink-0">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: event.color }}
-                    />
-                    {event.isGoogle ? '📅 Google' : member?.name}
-                  </span>
+                  {member && (
+                    <span className="text-xs text-gray-600 truncate flex items-center gap-1 shrink-0">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: event.color }}
+                      />
+                      {member.name}
+                    </span>
+                  )}
                 </div>
               );
             })}

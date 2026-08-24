@@ -431,6 +431,7 @@ export const Schedule: React.FC<{
           memberId: '__google__',
           color: '#4285F4',
           isGoogle: true,
+          location: e.location,
         })),
     [googleEvents]
   );
@@ -697,7 +698,9 @@ export const Schedule: React.FC<{
                             >
                               <div className="text-white p-2 h-full overflow-hidden">
                                 <div className="text-xs font-bold truncate">{event.title}</div>
-                                <div className="text-[10px] opacity-90 truncate">{event.isGoogle ? '📅 Google Calendar' : `${member?.avatar ?? ''} ${member?.name ?? ''}`}</div>
+                                {(!event.isGoogle || event.location) && (
+                                  <div className="text-[10px] opacity-90 truncate">{event.isGoogle ? `📍 ${event.location}` : `${member?.avatar ?? ''} ${member?.name ?? ''}`}</div>
+                                )}
                                 <div className="text-[10px] opacity-75">{event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)}</div>
                               </div>
                               {!event.isGoogle && (
@@ -813,7 +816,9 @@ export const Schedule: React.FC<{
                             >
                               <div className="text-white p-2 h-full overflow-hidden">
                                 <div className="text-xs font-bold truncate">{event.title}</div>
-                                <div className="text-[10px] opacity-90 truncate">{event.isGoogle ? '📅 Google Calendar' : `${member?.avatar ?? ''} ${member?.name ?? ''}`}</div>
+                                {(!event.isGoogle || event.location) && (
+                                  <div className="text-[10px] opacity-90 truncate">{event.isGoogle ? `📍 ${event.location}` : `${member?.avatar ?? ''} ${member?.name ?? ''}`}</div>
+                                )}
                                 <div className="text-[10px] opacity-75">{event.start_time?.slice(0, 5)} - {event.end_time?.slice(0, 5)}</div>
                               </div>
                             </motion.div>
