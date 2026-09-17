@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Trophy, Utensils, MapPin, Calendar } from 'lucide-react';
+import { CheckCircle, Trophy, Utensils, MapPin, Calendar, BookOpen } from 'lucide-react';
 import { FamilyMember, Chore, Activity, PlannedActivity } from '../types';
 import { ConfettiCelebration } from './ConfettiCelebration';
 import { TodaysScheduleCard } from './TodaysScheduleCard';
+import { RecipeViewModal } from './RecipeViewModal';
 import { VerseOfTheDayCard } from './VerseOfTheDayCard';
 import { useTodayMeal } from '../hooks/useMeals';
 import { useActivities } from '../hooks/useActivities';
@@ -24,14 +25,28 @@ const TIMELINE_START_HOUR = 7;
 // --- Sub-components ---
 const TodaysMeals: React.FC = () => {
   const { lunch, dinner, loading } = useTodayMeal();
+  const [recipeMealId, setRecipeMealId] = useState<string | null>(null);
   if (loading) return <div className="text-orange-700 text-base">Loading...</div>;
   if (!lunch && !dinner) return <div className="text-orange-700 text-base">No meals planned</div>;
   const withSides = (meal: any) =>
     meal.meal_name + (meal.sides?.length ? ` + ${meal.sides.join(', ')}` : '');
+  const line = (label: string, meal: any) =>
+    meal.has_recipe ? (
+      <button
+        onClick={() => setRecipeMealId(meal.saved_meal_id)}
+        className="block w-full text-left text-sm font-medium text-orange-800 hover:underline"
+        title="Open recipe"
+      >
+        🍽️ {label}: {withSides(meal)} <BookOpen size={14} className="inline -mt-0.5 text-orange-600" />
+      </button>
+    ) : (
+      <div className="text-sm font-medium text-orange-800">🍽️ {label}: {withSides(meal)}</div>
+    );
   return (
     <div className="space-y-1">
-      {lunch && <div className="text-sm font-medium text-orange-800">🍽️ Lunch: {withSides(lunch)}</div>}
-      {dinner && <div className="text-sm font-medium text-orange-800">🍽️ Dinner: {withSides(dinner)}</div>}
+      {lunch && line('Lunch', lunch)}
+      {dinner && line('Dinner', dinner)}
+      <RecipeViewModal mealId={recipeMealId} onClose={() => setRecipeMealId(null)} />
     </div>
   );
 };

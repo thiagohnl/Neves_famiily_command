@@ -14,10 +14,11 @@ import {
   getTodayPlan,
   MealSlot,
 } from '@/lib/mealsApi';
+import type { SavedMeal } from '@/types/recipe';
 
 // ---------- Saved Meals ----------
 export function useSavedMeals() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<SavedMeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

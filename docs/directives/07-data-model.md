@@ -140,9 +140,18 @@ Library of meals the family prepares.
 | `emoji` | text | Yes | `'🍽️'` | Display emoji |
 | `notes` | text | Yes | `null` | Optional notes |
 | `meal_types` | text[] | Yes | `['lunch', 'dinner']` | Which slots this meal fits |
+| `ingredients` | jsonb | Yes | `[]` | Recipe ingredients: `RecipeIngredient[]` (see below) |
+| `steps` | jsonb | Yes | `[]` | Recipe method, array of strings in the source language |
+| `servings` | int | Yes | `null` | Servings the recipe makes (base for scaling) |
+| `prep_minutes` | int | Yes | `null` | Prep time |
+| `cook_minutes` | int | Yes | `null` | Cook time |
+| `recipe_source_url` | text | Yes | `null` | Where the recipe came from (blog, Instagram post...) |
+| `recipe_image_url` | text | Yes | `null` | Public URL of the dish photo in the `recipe-photos` bucket |
 | `created_at` | timestamptz | No | `now()` | Creation timestamp |
 
-**Used by:** `mealsApi.ts` (listSavedMeals, createSavedMeal, updateSavedMeal, deleteSavedMeal), `useSavedMeals`.
+`RecipeIngredient` (`src/types/recipe.ts`): `{ text, name, quantity, unit, emoji, category, staple? }`. `text` is the original line in the recipe's language; `name` is a generic English pantry-style name used to match pantry and grocery items; `staple` marks salt/pepper/water-type items that are skipped for shopping and pantry deduction.
+
+**Used by:** `mealsApi.ts` (listSavedMeals, getSavedMeal, createSavedMeal, updateSavedMeal, deleteSavedMeal, uploadRecipePhoto), `useSavedMeals`, `EditSavedMealDialog`, `RecipeViewModal`, `CookedMealModal`.
 
 ---
 

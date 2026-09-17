@@ -7,8 +7,9 @@ set -euo pipefail
 #
 # BEFORE RUNNING THIS SCRIPT:
 #   1. Create a new Supabase project on your new account
-#   2. In the new project dashboard, go to Storage and create a bucket called
-#      "profile-photos" — set it to PUBLIC
+#   2. In the new project dashboard, go to Storage and create buckets called
+#      "profile-photos" and "recipe-photos" — set both to PUBLIC
+#      (this script only copies profile-photos files)
 #   3. Add a storage policy allowing all operations for the "anon" role
 #   4. Gather the credentials listed below from both projects
 #

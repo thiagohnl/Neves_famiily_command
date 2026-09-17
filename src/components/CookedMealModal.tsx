@@ -4,11 +4,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, ChefHat, Sparkles } from 'lucide-react';
 import { listPantryItems, deductPantryQuantities, type PantryItem } from '../lib/pantryApi';
 import { getCookedMealDeductions } from '../lib/aiApi';
+import { matchIngredientsToPantry } from '../lib/recipeMatching';
+import type { RecipeIngredient } from '../types/recipe';
 import toast from 'react-hot-toast';
 
 interface CookedMealModalProps {
   open: boolean;
   mealName: string;
+  /** Saved recipe ingredients: when present, deductions come from the recipe instead of an AI guess */
+  ingredients?: RecipeIngredient[] | null;
+  scale?: number;
   onClose: () => void;
 }
 
@@ -19,23 +24,28 @@ interface DeductionRow {
   unit: string;
   available: number;
   use: number;
+  /** Recipe amount couldn't be converted to this item's unit */
+  needsAmount?: boolean;
 }
 
-export const CookedMealModal: React.FC<CookedMealModalProps> = ({ open, mealName, onClose }) => {
+export const CookedMealModal: React.FC<CookedMealModalProps> = ({ open, mealName, ingredients, scale = 1, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<DeductionRow[]>([]);
   const [pantry, setPantry] = useState<PantryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [notInPantry, setNotInPantry] = useState<string[]>([]);
+  const fromRecipe = !!ingredients && ingredients.length > 0;
 
   useEffect(() => {
     if (open && mealName) analyze();
     if (!open) {
       setRows([]);
       setError(null);
+      setNotInPantry([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, mealName]);
+  }, [open, mealName, ingredients, scale]);
 
   async function analyze() {
     setLoading(true);
@@ -46,6 +56,30 @@ export const CookedMealModal: React.FC<CookedMealModalProps> = ({ open, mealName
       setPantry(items);
       if (items.length === 0) {
         setError('Your pantry is empty — nothing to deduct.');
+        return;
+      }
+
+      if (fromRecipe) {
+        const matches = matchIngredientsToPantry(ingredients!, items, scale);
+        const byId = new Map<string, DeductionRow>();
+        for (const m of matches) {
+          if (m.status === 'staple' || !m.pantryItem || m.status === 'missing') continue;
+          const item = items.find((it) => it.id === m.pantryItem!.id)!;
+          const existing = byId.get(item.id);
+          const use = m.deductQuantity ?? 0;
+          if (existing) {
+            existing.use = Math.min(item.quantity, existing.use + use);
+            existing.needsAmount = existing.needsAmount || m.deductQuantity == null;
+          } else {
+            byId.set(item.id, {
+              id: item.id, name: item.name, emoji: item.emoji, unit: item.unit,
+              available: item.quantity, use, needsAmount: m.deductQuantity == null,
+            });
+          }
+        }
+        setRows([...byId.values()]);
+        setNotInPantry(matches.filter((m) => m.status === 'missing').map((m) => m.ingredient.name));
+        if (byId.size === 0) setError("None of this recipe's ingredients are in the pantry.");
         return;
       }
 
@@ -181,7 +215,9 @@ export const CookedMealModal: React.FC<CookedMealModalProps> = ({ open, mealName
 
                   {rows.length > 0 && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      These will be deducted from your pantry — adjust before confirming:
+                      {fromRecipe
+                        ? 'From the saved recipe — adjust before confirming:'
+                        : 'These will be deducted from your pantry — adjust before confirming:'}
                     </p>
                   )}
 
@@ -195,6 +231,7 @@ export const CookedMealModal: React.FC<CookedMealModalProps> = ({ open, mealName
                         <div className="text-sm font-medium truncate dark:text-white">{r.name}</div>
                         <div className="text-xs text-gray-400">
                           have {r.available} {r.unit}
+                          {r.needsAmount && <span className="text-amber-600 dark:text-amber-400"> · set amount used</span>}
                         </div>
                       </div>
                       <input
@@ -215,6 +252,12 @@ export const CookedMealModal: React.FC<CookedMealModalProps> = ({ open, mealName
                       </button>
                     </div>
                   ))}
+
+                  {notInPantry.length > 0 && (
+                    <p className="text-xs text-gray-400">
+                      Not in pantry: {notInPantry.join(', ')}
+                    </p>
+                  )}
 
                   {!loading && remaining.length > 0 && (
                     <select

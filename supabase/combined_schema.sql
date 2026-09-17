@@ -57,6 +57,13 @@ CREATE TABLE IF NOT EXISTS saved_meals (
   emoji text DEFAULT '🍽️',
   notes text,
   meal_types text[] DEFAULT ARRAY['lunch', 'dinner']::text[],
+  ingredients jsonb DEFAULT '[]'::jsonb,
+  steps jsonb DEFAULT '[]'::jsonb,
+  servings int,
+  prep_minutes int,
+  cook_minutes int,
+  recipe_source_url text,
+  recipe_image_url text,
   created_at timestamptz DEFAULT now()
 );
 
@@ -416,6 +423,27 @@ CREATE POLICY "Anyone can update profile photos"
 CREATE POLICY "Anyone can delete profile photos"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'profile-photos');
+
+-- Recipe cover photos
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('recipe-photos', 'recipe-photos', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "Anyone can view recipe photos"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'recipe-photos');
+
+CREATE POLICY "Anyone can upload recipe photos"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'recipe-photos');
+
+CREATE POLICY "Anyone can update recipe photos"
+  ON storage.objects FOR UPDATE
+  USING (bucket_id = 'recipe-photos');
+
+CREATE POLICY "Anyone can delete recipe photos"
+  ON storage.objects FOR DELETE
+  USING (bucket_id = 'recipe-photos');
 
 -- ============================================================
 -- 12. SEED DATA

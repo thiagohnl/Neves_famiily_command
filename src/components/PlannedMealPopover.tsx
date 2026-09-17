@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard as Edit, Trash2, MoveHorizontal, ChefHat, Plus, X } from 'lucide-react';
+import { CreditCard as Edit, Trash2, MoveHorizontal, ChefHat, Plus, X, BookOpen } from 'lucide-react';
 import { MealSlot } from '../lib/mealsApi';
 
 interface PlannedMealPopoverProps {
@@ -13,6 +13,7 @@ interface PlannedMealPopoverProps {
   onChangeSlot: (newSlot: MealSlot) => void;
   onRemove: () => void;
   onCooked?: () => void;
+  onViewRecipe?: () => void;
   onAddSide?: (side: string) => void;
   onRemoveSide?: (index: number) => void;
   initialView?: 'menu' | 'addSide';
@@ -29,6 +30,7 @@ export const PlannedMealPopover: React.FC<PlannedMealPopoverProps> = ({
   onChangeSlot,
   onRemove,
   onCooked,
+  onViewRecipe,
   onAddSide,
   onRemoveSide,
   initialView = 'menu',
@@ -81,6 +83,19 @@ export const PlannedMealPopover: React.FC<PlannedMealPopoverProps> = ({
 
             {view === 'menu' && (
               <>
+                {onViewRecipe && (
+                  <button
+                    onClick={() => {
+                      onViewRecipe();
+                      onClose();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 rounded transition-colors"
+                  >
+                    <BookOpen size={16} />
+                    <span>View recipe</span>
+                  </button>
+                )}
+
                 {onCooked && (
                   <button
                     onClick={() => {

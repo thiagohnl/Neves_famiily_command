@@ -1,5 +1,7 @@
 // src/lib/mealsApi.ts
 import { supabase } from './supabase';
+import { compressImageToBlob } from './aiApi';
+import { hasRecipe, type RecipeFields, type SavedMeal, type SavedMealInput } from '../types/recipe';
 
 const FAMILY_ID = 'default';
 const USER_ID = 'family';
@@ -7,17 +9,27 @@ const USER_ID = 'family';
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner';
 
 // -------- Saved Meals --------
-export async function listSavedMeals() {
+export async function listSavedMeals(): Promise<SavedMeal[]> {
   const { data, error } = await supabase
     .from('saved_meals')
     .select('*')
     .eq('family_id', FAMILY_ID)
     .order('name', { ascending: true });
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as SavedMeal[];
 }
 
-export async function createSavedMeal(input: { name: string; emoji?: string; notes?: string; meal_types?: string[] }) {
+export async function getSavedMeal(id: string): Promise<SavedMeal | null> {
+  const { data, error } = await supabase
+    .from('saved_meals')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as SavedMeal) ?? null;
+}
+
+export async function createSavedMeal(input: SavedMealInput): Promise<SavedMeal> {
   const { data, error } = await supabase
     .from('saved_meals')
     .insert({
@@ -26,14 +38,15 @@ export async function createSavedMeal(input: { name: string; emoji?: string; not
       emoji: input.emoji ?? '🍽️',
       notes: input.notes ?? null,
       meal_types: input.meal_types ?? ['lunch', 'dinner'],
+      ...recipeColumns(input),
     })
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return data as SavedMeal;
 }
 
-export async function updateSavedMeal(id: string, input: { name?: string; emoji?: string; notes?: string; meal_types?: string[] }) {
+export async function updateSavedMeal(id: string, input: Partial<SavedMealInput>): Promise<SavedMeal> {
   const { data, error } = await supabase
     .from('saved_meals')
     .update({
@@ -41,12 +54,36 @@ export async function updateSavedMeal(id: string, input: { name?: string; emoji?
       ...(input.emoji !== undefined && { emoji: input.emoji }),
       ...(input.notes !== undefined && { notes: input.notes }),
       ...(input.meal_types !== undefined && { meal_types: input.meal_types }),
+      ...recipeColumns(input),
     })
     .eq('id', id)
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return data as SavedMeal;
+}
+
+// Only the recipe fields that were actually passed, so partial updates leave the rest untouched
+function recipeColumns(input: Partial<RecipeFields>): Partial<RecipeFields> {
+  const keys: (keyof RecipeFields)[] = [
+    'ingredients', 'steps', 'servings', 'prep_minutes', 'cook_minutes', 'recipe_source_url', 'recipe_image_url',
+  ];
+  const out: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (input[key] !== undefined) out[key] = input[key];
+  }
+  return out as Partial<RecipeFields>;
+}
+
+export async function uploadRecipePhoto(image: Blob, mealId: string): Promise<string> {
+  const { blob } = await compressImageToBlob(image, 1200, 0.82);
+  const fileName = `${mealId}-${Date.now()}.jpg`;
+  const { error } = await supabase.storage
+    .from('recipe-photos')
+    .upload(fileName, blob, { cacheControl: '31536000', contentType: 'image/jpeg', upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from('recipe-photos').getPublicUrl(fileName);
+  return data.publicUrl;
 }
 
 export async function deleteSavedMeal(id: string) {
@@ -163,7 +200,7 @@ export async function planMeal(date: string, slot: MealSlot, meal: { id: string 
 export async function getPlannedWeek(startISO: string, endISO: string) {
   const { data, error } = await supabase
     .from('meal_plans')
-    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, sides, saved_meals:meal_id(id,name,emoji)')
+    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, sides, saved_meals:meal_id(id,name,emoji,ingredients,steps)')
     .gte('date', startISO)
     .lte('date', endISO)
     .order('date', { ascending: true });
@@ -179,6 +216,7 @@ export async function getPlannedWeek(startISO: string, endISO: string) {
     meal_name: item.saved_meals?.name || item.meal_name || 'Unknown Meal',
     meal_emoji: item.meal_emoji || item.saved_meals?.emoji || '🍽️',
     sides: item.sides ?? [],
+    has_recipe: hasRecipe(item.saved_meals),
   }));
 }
 
@@ -238,7 +276,7 @@ export async function changePlannedMealSlot(date: string, oldSlot: MealSlot, new
 export async function getTodayPlan(todayISO: string) {
   const { data, error } = await supabase
     .from('meal_plans')
-    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, sides, saved_meals:meal_id(id,name,emoji)')
+    .select('id, date, meal_type, meal_id, meal_name, meal_emoji, sides, saved_meals:meal_id(id,name,emoji,ingredients,steps)')
     .eq('date', todayISO);
 
   if (error) throw error;
@@ -252,6 +290,7 @@ export async function getTodayPlan(todayISO: string) {
     meal_name: item.saved_meals?.name || item.meal_name || 'Unknown Meal',
     meal_emoji: item.meal_emoji || item.saved_meals?.emoji || '🍽️',
     sides: item.sides ?? [],
+    has_recipe: hasRecipe(item.saved_meals),
   }));
 }
 

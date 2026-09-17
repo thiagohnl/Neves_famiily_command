@@ -1,5 +1,6 @@
 import {
   createSavedMeal,
+  updateSavedMeal,
   listSavedMeals,
   deleteSavedMeal,
   planMeal,
@@ -44,6 +45,34 @@ describe('mealsApi', () => {
       );
 
       await expect(createSavedMeal({ name: 'Bad' })).rejects.toEqual({ message: 'insert failed' });
+    });
+  });
+
+  describe('recipe fields', () => {
+    const ingredients = [
+      { text: '2 eggs', name: 'Egg', quantity: 2, unit: null, emoji: '🥚', category: 'dairy' as const },
+    ];
+
+    it('includes recipe fields on create', async () => {
+      const q = chain({ data: { id: 'm1' }, error: null });
+      mockSupabase.from.mockReturnValue(q);
+
+      await createSavedMeal({ name: 'Omelette', ingredients, steps: ['Whisk', 'Fry'], servings: 2 });
+
+      expect(q.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Omelette', ingredients, steps: ['Whisk', 'Fry'], servings: 2 })
+      );
+      expect(q.insert.mock.calls[0][0]).not.toHaveProperty('cook_minutes');
+    });
+
+    it('only updates the fields that were passed', async () => {
+      const q = chain({ data: { id: 'm1' }, error: null });
+      mockSupabase.from.mockReturnValue(q);
+
+      await updateSavedMeal('m1', { steps: [], recipe_image_url: null });
+
+      expect(q.update).toHaveBeenCalledWith({ steps: [], recipe_image_url: null });
+      expect(q.eq).toHaveBeenCalledWith('id', 'm1');
     });
   });
 

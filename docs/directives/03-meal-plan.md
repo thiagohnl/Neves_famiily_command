@@ -35,6 +35,17 @@ Returns: `{ items, loading, error, refetch, add, remove }`
 - `add(name, emoji?, notes?)` creates a meal and inserts it sorted by name.
 - `remove(id)` deletes the meal and removes it from local state.
 
+### Recipes
+
+Any saved meal can carry a recipe (ingredients, steps, servings, times, dish photo, source link).
+
+- **Editing:** `EditSavedMealDialog` has **Details** and **Recipe** tabs. In create mode (no `meal` prop, opened from "📥 Import Recipe") it starts on the Recipe tab and calls `createSavedMeal`.
+- **Importing:** the Recipe tab sends a link, 1-4 photos/screenshots, or pasted text to `api/import-recipe.ts` (via `src/lib/recipeApi.ts`). The endpoint reads schema.org `Recipe` JSON-LD when a page has it, otherwise page meta + text, and asks Claude for schema-constrained JSON. Instagram/TikTok links are best effort — Instagram usually serves a login wall, so the endpoint returns `422 { fallback: 'paste_or_screenshot' }` and the dialog opens the paste box. Link preview images are returned as base64 and re-uploaded, because social CDN URLs expire.
+- **Photos:** `uploadRecipePhoto(blob, key)` compresses to 1200px JPEG and stores it in the public `recipe-photos` bucket.
+- **Viewing:** `RecipeViewModal` (portal, near full-screen, keeps the screen awake) opens from the 📖 button on saved meals, planned meal cells, the planned meal popover ("View recipe"), and the Board's Meal of the Day card. It scales quantities by servings, shows pantry status per ingredient, adds missing ingredients to the grocery list (skipping ones already on it), and runs Cooked It.
+- **Pantry matching:** `src/lib/recipeMatching.ts` is pure and unit-tested: name normalization (accents, plurals), exact-then-containment matching, g/kg and ml/L conversion. Incompatible units (tbsp vs bottle) count as "have" with no automatic deduction amount.
+- **Cooked It:** when the meal has saved ingredients, `CookedMealModal` builds deductions from the recipe with no AI call; rows whose units can't be converted start at 0 with a "set amount used" hint. Meals without a recipe keep the AI estimate (`api/cook-meal.ts`).
+
 ### Freezer Tracking
 
 **API:** `src/lib/mealsApi.ts`
@@ -160,7 +171,8 @@ After fetching and mapping, each planned meal item has:
 | Component | File | Role |
 |---|---|---|
 | `MealPlan` | `src/components/MealPlan.tsx` | Main meal plan page |
-| `EditSavedMealDialog` | `src/components/EditSavedMealDialog.tsx` | Edit a saved meal |
+| `EditSavedMealDialog` | `src/components/EditSavedMealDialog.tsx` | Create/edit a saved meal and its recipe (with AI import) |
+| `RecipeViewModal` | `src/components/RecipeViewModal.tsx` | Tablet recipe view: scaling, pantry status, grocery list, Cooked It |
 | `PlannedMealPopover` | `src/components/PlannedMealPopover.tsx` | Actions on a planned meal |
 | `SuggestionsCarousel` | `src/components/SuggestionsCarousel.tsx` | Meal suggestions |
 | `MealQuestCard` | `src/components/MealQuestCard.tsx` | Meal quest gamification |

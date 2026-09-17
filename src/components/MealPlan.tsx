@@ -1,7 +1,7 @@
 // src/components/MealPlan.tsx
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Trash2, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { Plus, X, Trash2, ChevronLeft, ChevronRight, Heart, BookOpen } from 'lucide-react';
 import { useSavedMeals, useFreezerMeals, useWeekMealPlan, MealSlot } from '@/hooks/useMeals';
 import { FamilyMember } from '../types';
 import toast from 'react-hot-toast';
@@ -16,7 +16,8 @@ import { MealQuestCard } from './MealQuestCard';
 import { EditSavedMealDialog } from './EditSavedMealDialog';
 import { PlannedMealPopover } from './PlannedMealPopover';
 import { CookedMealModal } from './CookedMealModal';
-import { updateSavedMeal, deletePlannedMeal, changePlannedMealSlot, copyWeekPlan, clearWeekPlan, updatePlannedMealSides } from '../lib/mealsApi';
+import { RecipeViewModal } from './RecipeViewModal';
+import { createSavedMeal, updateSavedMeal, deletePlannedMeal, changePlannedMealSlot, copyWeekPlan, clearWeekPlan, updatePlannedMealSides } from '../lib/mealsApi';
 import { MealPickerModal } from './MealPickerModal';
 import { PantryPanel } from './PantryPanel';
 import { GroceryList } from './GroceryList';
@@ -25,6 +26,7 @@ import { usePantry, useExpiringSoon } from '../hooks/usePantry';
 import { useAIMealSuggestions } from '../hooks/useAIMealSuggestions';
 import type { MealSuggestion } from '../lib/aiApi';
 import type { MealType } from '../types/meal-plan';
+import { hasRecipe, type RecipeIngredient, type SavedMeal, type SavedMealInput } from '../types/recipe';
 
 dayjs.extend(weekOfYear);
 
@@ -40,9 +42,11 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
   const [pendingMeal, setPendingMeal] = useState<{ id: string | null; name: string; emoji: string | null } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [mealTypeFilter, setMealTypeFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner'>('all');
-  const [editingMeal, setEditingMeal] = useState<any>(null);
+  const [editingMeal, setEditingMeal] = useState<SavedMeal | null>(null);
+  const [creatingMeal, setCreatingMeal] = useState(false);
+  const [recipeView, setRecipeView] = useState<{ mealId: string; meal?: SavedMeal } | null>(null);
   const [plannedMealPopover, setPlannedMealPopover] = useState<{ date: string; slot: MealSlot; meal: any; position: { top: number; left: number }; initialView?: 'menu' | 'addSide' } | null>(null);
-  const [cookedMealName, setCookedMealName] = useState<string | null>(null);
+  const [cookedMeal, setCookedMeal] = useState<{ name: string; ingredients: RecipeIngredient[] | null } | null>(null);
   const [mealPickerTarget, setMealPickerTarget] = useState<{ date: string; slot: MealSlot; dateLabel: string } | null>(null);
   const [mealsSubTab, setMealsSubTab] = useState<'planner' | 'pantry' | 'grocery'>('planner');
 
@@ -389,15 +393,25 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
     }
   };
 
-  const handleSaveEditedMeal = async (id: string, updates: { name: string; emoji: string; meal_types: string[] }) => {
+  const handleSaveEditedMeal = async (id: string | null, updates: SavedMealInput) => {
     try {
-      await updateSavedMeal(id, updates);
+      if (id) await updateSavedMeal(id, updates);
+      else await createSavedMeal(updates);
       await refetchSavedMeals();
-      toast.success('Meal updated!');
+      await refetchWeekPlan();
+      toast.success(id ? 'Meal updated!' : 'Meal saved!');
     } catch (error: any) {
-      console.error('Failed to update meal:', error);
-      toast.error('Failed to update meal');
+      console.error('Failed to save meal:', error);
+      toast.error('Failed to save meal');
+      // keep the dialog open so the recipe isn't lost
+      throw error;
     }
+  };
+
+  const openRecipeForPlanned = (planned: any) => {
+    if (!planned?.saved_meal_id) return;
+    const meal = savedMeals.find((m) => m.id === planned.saved_meal_id);
+    setRecipeView({ mealId: planned.saved_meal_id, meal });
   };
 
   const handleChangePlannedSlot = async (date: string, oldSlot: MealSlot, newSlot: MealSlot) => {
@@ -553,6 +567,18 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    {hasRecipe(m) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRecipeView({ mealId: m.id, meal: m });
+                        }}
+                        className="p-1 rounded-full hover:bg-purple-50 transition-colors"
+                        title="View recipe"
+                      >
+                        <BookOpen size={16} className="text-purple-600" />
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -602,12 +628,21 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           </div>
           
           {isParentMode && (
-            <button
-              onClick={() => setShowAddMealModal(true)}
-              className="w-full mt-3 bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-            >
-              + Add New Meal
-            </button>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setShowAddMealModal(true)}
+                className="flex-1 bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+              >
+                + Add New Meal
+              </button>
+              <button
+                onClick={() => setCreatingMeal(true)}
+                className="flex-1 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                title="Import a recipe from a link, photo or text"
+              >
+                📥 Import Recipe
+              </button>
+            </div>
           )}
         </div>
 
@@ -787,6 +822,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                         meal: dayPlan.breakfast,
                         position: { top: rect.bottom + 5, left: rect.left }
                       });
+                    } else if (dayPlan.breakfast?.has_recipe) {
+                      openRecipeForPlanned(dayPlan.breakfast);
                     } else if (!dayPlan.breakfast) {
                       setMealPickerTarget({ date: dateISO, slot: 'breakfast', dateLabel: day.format('ddd, MMM D') });
                     }
@@ -814,6 +851,18 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                           <span className="mt-1 text-[11px] text-gray-500 line-clamp-1">+ {dayPlan.breakfast.sides.join(', ')}</span>
                         )}
                       </div>
+                      {dayPlan.breakfast.has_recipe && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openRecipeForPlanned(dayPlan.breakfast);
+                          }}
+                          className="absolute bottom-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
+                          aria-label="View recipe"
+                        >
+                          <BookOpen size={14} className="text-purple-600" />
+                        </button>
+                      )}
                       {isParentMode && (
                         <button
                           onClick={(e) => {
@@ -874,6 +923,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                         meal: dayPlan.lunch,
                         position: { top: rect.bottom + 5, left: rect.left }
                       });
+                    } else if (dayPlan.lunch?.has_recipe) {
+                      openRecipeForPlanned(dayPlan.lunch);
                     } else if (!dayPlan.lunch) {
                       setMealPickerTarget({ date: dateISO, slot: 'lunch', dateLabel: day.format('ddd, MMM D') });
                     }
@@ -901,6 +952,18 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                           <span className="mt-1 text-[11px] text-gray-500 line-clamp-1">+ {dayPlan.lunch.sides.join(', ')}</span>
                         )}
                       </div>
+                      {dayPlan.lunch.has_recipe && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openRecipeForPlanned(dayPlan.lunch);
+                          }}
+                          className="absolute bottom-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
+                          aria-label="View recipe"
+                        >
+                          <BookOpen size={14} className="text-purple-600" />
+                        </button>
+                      )}
                       {isParentMode && (
                         <button
                           onClick={(e) => {
@@ -961,6 +1024,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                         meal: dayPlan.dinner,
                         position: { top: rect.bottom + 5, left: rect.left }
                       });
+                    } else if (dayPlan.dinner?.has_recipe) {
+                      openRecipeForPlanned(dayPlan.dinner);
                     } else if (!dayPlan.dinner) {
                       setMealPickerTarget({ date: dateISO, slot: 'dinner', dateLabel: day.format('ddd, MMM D') });
                     }
@@ -988,6 +1053,18 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
                           <span className="mt-1 text-[11px] text-gray-500 line-clamp-1">+ {dayPlan.dinner.sides.join(', ')}</span>
                         )}
                       </div>
+                      {dayPlan.dinner.has_recipe && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openRecipeForPlanned(dayPlan.dinner);
+                          }}
+                          className="absolute bottom-2 right-2 p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
+                          aria-label="View recipe"
+                        >
+                          <BookOpen size={14} className="text-purple-600" />
+                        </button>
+                      )}
                       {isParentMode && (
                         <button
                           onClick={(e) => {
@@ -1307,6 +1384,29 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           onSave={handleSaveEditedMeal}
         />
       )}
+      {creatingMeal && (
+        <EditSavedMealDialog
+          isOpen={creatingMeal}
+          initialTab="recipe"
+          onClose={() => setCreatingMeal(false)}
+          onSave={handleSaveEditedMeal}
+        />
+      )}
+
+      {/* Recipe view */}
+      <RecipeViewModal
+        mealId={recipeView?.mealId ?? null}
+        meal={recipeView?.meal}
+        onClose={() => setRecipeView(null)}
+        onEdit={
+          isParentMode
+            ? (meal) => {
+                setRecipeView(null);
+                setEditingMeal(meal);
+              }
+            : undefined
+        }
+      />
 
       {/* Meal Picker Modal (click-to-assign) */}
       {mealPickerTarget && (
@@ -1341,8 +1441,16 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
           onCooked={() => {
             // Include sides so the AI pantry deduction accounts for them
             const sides = getPlannedSides(plannedMealPopover.date, plannedMealPopover.slot);
-            setCookedMealName(plannedMealPopover.meal.meal_name + (sides.length ? ` + ${sides.join(', ')}` : ''));
+            const saved = savedMeals.find((m) => m.id === plannedMealPopover.meal.saved_meal_id);
+            setCookedMeal({
+              name: plannedMealPopover.meal.meal_name + (sides.length ? ` + ${sides.join(', ')}` : ''),
+              // A saved recipe makes the deduction exact; sides can then be added by hand in the modal
+              ingredients: saved?.ingredients?.length ? saved.ingredients : null,
+            });
           }}
+          onViewRecipe={
+            plannedMealPopover.meal.has_recipe ? () => openRecipeForPlanned(plannedMealPopover.meal) : undefined
+          }
           onAddSide={(side) => {
             handleAddSide(plannedMealPopover.date, plannedMealPopover.slot, side);
           }}
@@ -1356,9 +1464,10 @@ export const MealPlan: React.FC<MealPlanProps> = ({ familyMembers, isParentMode 
 
       {/* Cooked Meal — pantry deduction */}
       <CookedMealModal
-        open={cookedMealName !== null}
-        mealName={cookedMealName ?? ''}
-        onClose={() => setCookedMealName(null)}
+        open={cookedMeal !== null}
+        mealName={cookedMeal?.name ?? ''}
+        ingredients={cookedMeal?.ingredients}
+        onClose={() => setCookedMeal(null)}
       />
 
       {/* AI Meal Suggestions Modal */}

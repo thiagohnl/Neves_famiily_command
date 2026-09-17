@@ -31,22 +31,29 @@ export interface ScannedPantryItem {
 
 // Downscale + re-encode a photo so the upload stays small (phone photos can be 5MB+,
 // and Vercel serverless bodies are capped at 4.5MB).
-async function compressImage(file: File, maxDimension = 1568, quality = 0.8): Promise<{ base64: string; mediaType: string }> {
-  const bitmap = await createImageBitmap(file);
+function drawScaled(bitmap: ImageBitmap, maxDimension: number): HTMLCanvasElement {
   const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
-  const width = Math.round(bitmap.width * scale);
-  const height = Math.round(bitmap.height * scale);
-
   const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not process image');
-  ctx.drawImage(bitmap, 0, 0, width, height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
+  return canvas;
+}
 
+export async function compressImage(image: Blob, maxDimension = 1568, quality = 0.8): Promise<{ base64: string; mediaType: string }> {
+  const canvas = drawScaled(await createImageBitmap(image), maxDimension);
   const dataUrl = canvas.toDataURL('image/jpeg', quality);
   return { base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' };
+}
+
+export async function compressImageToBlob(image: Blob, maxDimension = 1200, quality = 0.82): Promise<{ blob: Blob }> {
+  const canvas = drawScaled(await createImageBitmap(image), maxDimension);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+  if (!blob) throw new Error('Could not process image');
+  return { blob };
 }
 
 async function requestScan(body: Record<string, unknown>): Promise<ScannedPantryItem[]> {
