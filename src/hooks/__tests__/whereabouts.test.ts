@@ -108,6 +108,18 @@ describe('resolveWhereabouts', () => {
     expect(resolveWhereabouts([CAROL], [], gym, gymItems, now)[CAROL.id].source).toBe('default');
   });
 
+  it('puts daycare on School and "home office" on Home over the office rule', () => {
+    const now = at(10);
+    const rules = [...SEED_RULES, rule('daycare', 'school'), rule('home office', 'home', 10)];
+    const items = finalizeTodayItems([
+      item('Daycare', '08:00', '17:30', [ISABEL.id]),
+      item('Home office', '09:00', '17:00', [THIAGO.id]),
+    ], minutes(now));
+    const result = resolveWhereabouts(MEMBERS, [], rules, items, now);
+    expect(result[ISABEL.id]).toMatchObject({ status: 'school', until: '17:30' });
+    expect(result[THIAGO.id]).toMatchObject({ status: 'home', source: 'calendar' });
+  });
+
   it('only uses items happening now that belong to the member or the whole family', () => {
     const now = at(16, 10);
     const items = finalizeTodayItems([
@@ -135,18 +147,30 @@ describe('resolveWhereabouts', () => {
 });
 
 describe('handSlots', () => {
-  it('shortens the second hand on a status by 45 px and fans out the rest', () => {
+  it('stacks two faces on one status, the second hand 45 px shorter', () => {
     const slots = handSlots([
       { memberId: 'a', status: 'home' },
       { memberId: 'b', status: 'home' },
       { memberId: 'c', status: 'school' },
-      { memberId: 'd', status: 'home' },
     ]);
-    expect(slots.map(s => [s.memberId, s.length, s.offsetDeg])).toEqual([
-      ['a', 115, 0],
-      ['b', 70, 0],
-      ['c', 115, 0],
-      ['d', 115, 28],
+    expect(slots.map(s => [s.memberId, s.length, s.offsetDeg, s.avatarR])).toEqual([
+      ['a', 100, 0, 26],
+      ['b', 55, 0, 26],
+      ['c', 100, 0, 26],
     ]);
+  });
+
+  it('clusters four on one status within ±27° so nobody points at a neighbouring label', () => {
+    const slots = handSlots(['a', 'b', 'c', 'd'].map(memberId => ({ memberId, status: 'home' as const })));
+    expect(slots.map(s => [s.length, s.offsetDeg])).toEqual([[100, -15], [100, 15], [56, -27], [56, 27]]);
+    // Neighbouring labels are 45° away; stay well short of halfway
+    expect(Math.max(...slots.map(s => Math.abs(s.offsetDeg)))).toBeLessThan(30);
+    expect(new Set(slots.map(s => s.avatarR))).toEqual(new Set([21]));
+  });
+
+  it('spreads five or more small faces evenly over ±30°', () => {
+    const slots = handSlots(['a', 'b', 'c', 'd', 'e'].map(memberId => ({ memberId, status: 'home' as const })));
+    expect(slots.map(s => s.offsetDeg)).toEqual([-30, -15, 0, 15, 30]);
+    expect(slots[0].avatarR).toBe(16);
   });
 });

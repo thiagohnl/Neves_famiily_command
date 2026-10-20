@@ -5,13 +5,28 @@ import { CLOCK_ORDER, Whereabout, WHEREABOUT_EMOJI, WHEREABOUT_LABEL } from '../
 import { memberColor } from '../../constants/memberColors';
 import { handSlots, MemberWhereabouts } from '../../lib/whereabouts';
 
-const SIZE = 420;
+const SIZE = 440;
 const C = SIZE / 2;
-const RING_R = 200;
-const GUIDE_R = 145;
-const LABEL_R = 172;
-const AVATAR_R = 26;
+const RING_R = 212; // 10 px stroke, so the inside edge is at 207
+const GUIDE_R = 140;
 const STEP_DEG = 360 / CLOCK_ORDER.length;
+
+/**
+ * Label blocks (emoji over word), placed by hand rather than on a circle: each
+ * is anchored on its outer side and grows inwards, so even "Travelling" keeps
+ * its outer corner about 10 px inside the ring. Side and diagonal labels are
+ * anchored at their outer edge (end on the right, start on the left).
+ */
+const LABEL_POS: Record<Whereabout, { x: number; y: number; anchor: 'start' | 'middle' | 'end' }> = {
+  school: { x: C, y: 50, anchor: 'middle' },
+  playdate: { x: C + 128, y: 92, anchor: 'end' },
+  work: { x: C + 192, y: C, anchor: 'end' },
+  travelling: { x: C + 125, y: 350, anchor: 'end' },
+  sleeping: { x: C, y: SIZE - 50, anchor: 'middle' },
+  grandma: { x: C - 125, y: 350, anchor: 'start' },
+  home: { x: C - 192, y: C, anchor: 'start' },
+  church: { x: C - 128, y: 92, anchor: 'start' },
+};
 
 const statusAngle = (status: Whereabout) => CLOCK_ORDER.indexOf(status) * STEP_DEG;
 
@@ -30,14 +45,15 @@ const Hand: React.FC<{
   color: string;
   angle: number;
   length: number;
+  avatarR: number;
   onSelect: () => void;
-}> = ({ member, color, angle, length, onSelect }) => {
+}> = ({ member, color, angle, length, avatarR, onSelect }) => {
   const rotate = useShortestAngle(angle);
   const spring = { type: 'spring' as const, stiffness: 70, damping: 14 };
   const clipId = `clock-avatar-${member.id}`;
   return (
     <motion.g animate={{ rotate }} initial={false} transition={spring}>
-      <circle r={length + AVATAR_R + 8} fill="none" />
+      <circle r={length + avatarR + 8} fill="none" />
       <line x1={0} y1={0} x2={0} y2={-length} stroke={color} strokeWidth={6} strokeLinecap="round" />
       <g transform={`translate(0 ${-length})`}>
         {/* Counter-rotate so faces stay upright */}
@@ -50,24 +66,24 @@ const Hand: React.FC<{
           aria-label={`Where is ${member.name}?`}
           style={{ cursor: 'pointer' }}
         >
-          <circle r={AVATAR_R + 4} fill="#FFFFFF" />
+          <circle r={avatarR + (avatarR > 20 ? 4 : 3)} fill="#FFFFFF" />
           {member.photo_url ? (
             <>
-              <clipPath id={clipId}><circle r={AVATAR_R} /></clipPath>
+              <clipPath id={clipId}><circle r={avatarR} /></clipPath>
               <image
                 href={member.photo_url}
-                x={-AVATAR_R}
-                y={-AVATAR_R}
-                width={AVATAR_R * 2}
-                height={AVATAR_R * 2}
+                x={-avatarR}
+                y={-avatarR}
+                width={avatarR * 2}
+                height={avatarR * 2}
                 clipPath={`url(#${clipId})`}
                 preserveAspectRatio="xMidYMid slice"
               />
             </>
           ) : (
             <>
-              <circle r={AVATAR_R} fill={color} />
-              <text textAnchor="middle" dominantBaseline="central" fontSize={28}>{member.avatar}</text>
+              <circle r={avatarR} fill={color} />
+              <text textAnchor="middle" dominantBaseline="central" fontSize={avatarR * 1.1}>{member.avatar}</text>
             </>
           )}
         </motion.g>
@@ -95,15 +111,13 @@ export const WhereaboutsClock: React.FC<WhereaboutsClockProps> = ({ familyMember
       <circle cx={C} cy={C} r={GUIDE_R} fill="none" stroke="#E5E7EB" strokeWidth={2} strokeDasharray="6 6" />
 
       {CLOCK_ORDER.map(status => {
-        const rad = (statusAngle(status) * Math.PI) / 180;
-        const x = C + LABEL_R * Math.sin(rad);
-        const y = C - LABEL_R * Math.cos(rad);
+        const { x, y, anchor } = LABEL_POS[status];
         return (
           <g key={status}>
-            <text x={x} y={y - 9} textAnchor="middle" dominantBaseline="central" fontSize={22}>
+            <text x={x} y={y - 11} textAnchor={anchor} dominantBaseline="central" fontSize={22}>
               {clockEmoji?.[status] ?? WHEREABOUT_EMOJI[status]}
             </text>
-            <text x={x} y={y + 14} textAnchor="middle" dominantBaseline="central" fontSize={19} fontWeight={700} fill="#374151">
+            <text x={x} y={y + 12} textAnchor={anchor} dominantBaseline="central" fontSize={18} fontWeight={700} fill="#374151">
               {WHEREABOUT_LABEL[status]}
             </text>
           </g>
@@ -120,6 +134,7 @@ export const WhereaboutsClock: React.FC<WhereaboutsClockProps> = ({ familyMember
               color={memberColor(familyMembers, member.id)}
               angle={statusAngle(slot.status) + slot.offsetDeg}
               length={slot.length}
+              avatarR={slot.avatarR}
               onSelect={() => onSelectMember(member.id)}
             />
           );

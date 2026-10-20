@@ -406,11 +406,11 @@ Calendar title keyword → status, used when no override is active. Same migrati
 | `created_at` | timestamptz | No | `now()` | Creation timestamp |
 
 **Seeded rules** (all members):
-- **School:** school, escola → `school`
+- **School:** school, escola → `school`; also daycare, creche, crèche, kinderopvang, opvang, BSO (migration `20261023120000_add_whereabouts_rule_keywords.sql`)
 - **Playdate:** playdate → `playdate`
 - **Church:** church, igreja, kerk → `church`
 - **Work:** work, office → `work`
-- **Working from home:** WFH → `home`, priority 10 so it beats "work"
+- **Working from home:** WFH, home office, thuiswerken → `home`, priority 10 so they beat "work"/"office"
 - **Grandma:** vovó, vovo, grandma → `grandma`
 - **Travelling:** travel, flight, train → `travelling`
 

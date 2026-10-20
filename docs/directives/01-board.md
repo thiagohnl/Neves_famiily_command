@@ -64,11 +64,24 @@ Each result is `{ status, source: 'manual' | 'presence' | 'calendar' | 'default'
 
 **`useWhereabouts(familyMembers, todayItems)`** (`src/hooks/useWhereabouts.ts`): loads active overrides and rules through `src/lib/whereaboutsApi.ts` on every refresh `tick`, re-loads overrides on any Supabase realtime change to `whereabouts_overrides` (so a phone update moves the hand within seconds), and resolves with the Today items `HomeBoard` already has (passed in rather than calling `useTodayItems()` a second time). Returns `{ whereabouts, setStatus(memberId, status | null) }`.
 
-**`WhereaboutsClock`** (`src/components/home/WhereaboutsClock.tsx`): a 420×420 SVG with an outer ring stroked `--season-accent`, a dashed inner guide ring, and eight emoji + word labels (19 px bold) at 45° steps, clockwise from the top: School, Playdate, Work, Travelling, Sleeping, Grandma's, Home, Church.
-- **Hands:** each is a 6 px line in the member colour from the centre to radius 115, ending in the member's photo (circular clip) or emoji avatar on their colour, with a 4 px white edge. The avatar is counter-rotated so faces stay upright.
-- **Shared status:** when members share a status, the second hand is 45 px shorter so the faces stack along it. From the third on there's no room left, so they fan out ±28° at full and then short length (`handSlots`).
+**`WhereaboutsClock`** (`src/components/home/WhereaboutsClock.tsx`): a 440×440 SVG with an outer ring stroked `--season-accent`, a dashed inner guide ring, and eight emoji + word labels (18 px bold) in 45° steps, clockwise from the top: School, Playdate, Work, Travelling, Sleeping, Grandma's, Home, Church. Label positions are fixed per status (`LABEL_POS`): side and diagonal labels are anchored on their outer edge and grow inwards, so even "Travelling" stays ~10 px inside the ring (the tablet renders text wider than desktop Chrome; the first version overflowed there).
+- **Hands:** each is a 6 px line in the member colour from the centre to radius 100 (short enough that a face never covers a label), ending in the member's photo (circular clip) or emoji avatar on their colour, with a white edge. The avatar is counter-rotated so faces stay upright.
+- **Shared status** (`handSlots`, by how many share it):
+  - 1: full hand, 26 px face radius.
+  - 2: the second hand is 45 px shorter so the faces stack along it.
+  - 3: a cluster at ±15° (full length) plus one at 56 px, 22 px faces.
+  - 4: ±15° at full length plus ±27° at 56 px, 21 px faces.
+  - 5 or more: 16 px faces spread over ±30°.
+  - Clusters stay under ±30° so nobody looks as if they point at the neighbouring status.
 - **Motion:** hands rotate with a framer-motion spring and take the short way round.
 - **Tap:** tapping a face (or a legend row) opens the sheet.
+
+**Where the clock gets the family's routine.** Besides taps on the board and phone presence, the clock only knows what's on today's list right now. Put regular places in as calendar entries:
+- **Recurring routine** (school, daycare, office days): add a recurring event on the **Schedule** tab, e.g. "School", Mon–Fri 08:30–15:00, assigned to Charlie. "Daycare" assigned to Isabel works the same way (daycare/creche/kinderopvang/BSO count as School).
+- **One-off days:** a Google Calendar event whose title contains a keyword *and* the person's name, e.g. "Carol WFH" or "Thiago Zaandam office". Without a name, an event counts for the whole family.
+- **Just today:** tap the face on the clock (4 hours).
+
+Every such entry also appears as a row in the Today list.
 
 **`WhereaboutsSheet`**: "Where is <name>?" with the eight statuses as large emoji buttons (96 px tall) and "Clear".
 - **Who can be set:** in parent mode the sheet also lists every member to pick from; otherwise only the tapped member can be set.

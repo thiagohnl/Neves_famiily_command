@@ -100,28 +100,46 @@ export const resolveWhereabouts = (
 };
 
 /**
- * Where each member's avatar sits on its hand. The first member on a status gets
- * the full hand, the second a hand 45 px shorter so their faces stack; from the
- * third on there is no room left along the hand, so they fan out ±28° instead
- * (at 115 px that clears a 60 px avatar).
+ * Where each member's avatar sits, by how many share their status. One member
+ * gets the full hand; two stack along it (the second 45 px shorter); three or
+ * four form a tight cluster of slightly smaller faces aimed at the same label,
+ * so nobody drifts towards a neighbouring status. 100 px keeps faces clear of
+ * the labels. `avatarR` is the face radius (plus a white edge).
  */
-export const HAND_LENGTH = 115;
-const SHORTER_BY = 45;
-const FAN_DEG = 28;
-const SLOTS: { offsetDeg: number; length: number }[] = [
-  { offsetDeg: 0, length: HAND_LENGTH },
-  { offsetDeg: 0, length: HAND_LENGTH - SHORTER_BY },
-  { offsetDeg: FAN_DEG, length: HAND_LENGTH },
-  { offsetDeg: -FAN_DEG, length: HAND_LENGTH },
-  { offsetDeg: FAN_DEG, length: HAND_LENGTH - SHORTER_BY },
-  { offsetDeg: -FAN_DEG, length: HAND_LENGTH - SHORTER_BY },
-];
+export const HAND_LENGTH = 100;
+const SHORT = HAND_LENGTH - 45;
+type Slot = { offsetDeg: number; length: number; avatarR: number };
+const LAYOUTS: Record<number, Slot[]> = {
+  1: [{ offsetDeg: 0, length: HAND_LENGTH, avatarR: 26 }],
+  2: [{ offsetDeg: 0, length: HAND_LENGTH, avatarR: 26 }, { offsetDeg: 0, length: SHORT, avatarR: 26 }],
+  3: [
+    { offsetDeg: -15, length: HAND_LENGTH, avatarR: 22 },
+    { offsetDeg: 15, length: HAND_LENGTH, avatarR: 22 },
+    { offsetDeg: 0, length: 56, avatarR: 22 },
+  ],
+  4: [
+    { offsetDeg: -15, length: HAND_LENGTH, avatarR: 21 },
+    { offsetDeg: 15, length: HAND_LENGTH, avatarR: 21 },
+    { offsetDeg: -27, length: 56, avatarR: 21 },
+    { offsetDeg: 27, length: 56, avatarR: 21 },
+  ],
+};
+
+/** Five or more on one status: small faces spread over ±30° at full length. */
+const crowdSlot = (k: number, n: number): Slot => ({
+  offsetDeg: -30 + (60 * k) / (n - 1),
+  length: HAND_LENGTH,
+  avatarR: 16,
+});
 
 export const handSlots = (statusByMember: { memberId: string; status: Whereabout }[]) => {
+  const groupSize = new Map<Whereabout, number>();
+  statusByMember.forEach(({ status }) => groupSize.set(status, (groupSize.get(status) ?? 0) + 1));
   const seen = new Map<Whereabout, number>();
   return statusByMember.map(({ memberId, status }) => {
     const k = seen.get(status) ?? 0;
     seen.set(status, k + 1);
-    return { memberId, status, ...SLOTS[k % SLOTS.length] };
+    const n = groupSize.get(status)!;
+    return { memberId, status, ...(LAYOUTS[n]?.[k] ?? crowdSlot(k, n)) };
   });
 };
