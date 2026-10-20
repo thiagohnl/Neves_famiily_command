@@ -53,7 +53,7 @@ Emoji for events and Google items come from the title: playdate 🧒, school/dro
 
 A Weasley-style clock: one hand per member pointing at where they are.
 
-**Statuses** (`src/constants/whereabouts.ts`): `home` 🏠, `school` 🏫, `work` 💼, `church` ⛪, `grandma` 👵 (label "Grandma's"), `playdate` 🧒, `travelling` 🚗, `sleeping` 😴. A season can swap emoji via `Season.clockEmoji`.
+**Statuses** (`src/constants/whereabouts.ts`): `home` 🏠, `school` 🏫, `work` 💼, `church` ⛪, `playdate` 🧒, `football` ⚽, `sleeping` 😴. (Grandma's and Travelling were removed on 2026-10-20 at the family's request; Football was added.) A season can swap emoji via `Season.clockEmoji`.
 
 **Resolution** (`resolveWhereabouts` in `src/lib/whereabouts.ts`, pure, tested in `src/hooks/__tests__/whereabouts.test.ts`), per member, first match wins:
 1. **Override** from `whereabouts_overrides` with `expires_at` null or in the future. `manual` beats `presence`; within a source the newest `set_at` wins.
@@ -64,7 +64,7 @@ Each result is `{ status, source: 'manual' | 'presence' | 'calendar' | 'default'
 
 **`useWhereabouts(familyMembers, todayItems)`** (`src/hooks/useWhereabouts.ts`): loads active overrides and rules through `src/lib/whereaboutsApi.ts` on every refresh `tick`, re-loads overrides on any Supabase realtime change to `whereabouts_overrides` (so a phone update moves the hand within seconds), and resolves with the Today items `HomeBoard` already has (passed in rather than calling `useTodayItems()` a second time). Returns `{ whereabouts, setStatus(memberId, status | null) }`.
 
-**`WhereaboutsClock`** (`src/components/home/WhereaboutsClock.tsx`): a 440×440 SVG with an outer ring stroked `--season-accent`, a dashed inner guide ring, and eight emoji + word labels (18 px bold) in 45° steps, clockwise from the top: School, Playdate, Work, Travelling, Sleeping, Grandma's, Home, Church. Label positions are fixed per status (`LABEL_POS`): side and diagonal labels are anchored on their outer edge and grow inwards, so even "Travelling" stays ~10 px inside the ring (the tablet renders text wider than desktop Chrome; the first version overflowed there).
+**`WhereaboutsClock`** (`src/components/home/WhereaboutsClock.tsx`): a 440×440 SVG with an outer ring stroked `--season-accent`, a dashed inner guide ring, and seven emoji + word labels (18 px bold) in equal steps (≈51.4°), clockwise from the top: School, Playdate, Work, Football, Sleeping, Home, Church. The short words (Work, Home) sit at the sides, where a label runs straight towards the faces. Label positions are fixed per status (`LABEL_POS`, mirrored pairs): side and diagonal labels are anchored on their outer edge and grow inwards, staying ~10 px inside the ring and clear of a face on their hand (the tablet renders text wider than desktop Chrome; the first version overflowed there). Changing the set of statuses means re-placing `LABEL_POS` and a migration for the two `status` check constraints.
 - **Hands:** each is a 6 px line in the member colour from the centre to radius 100 (short enough that a face never covers a label), ending in the member's photo (circular clip) or emoji avatar on their colour, with a white edge. The avatar is counter-rotated so faces stay upright.
 - **Shared status** (`handSlots`, by how many share it):
   - 1: full hand, 26 px face radius.
@@ -83,7 +83,7 @@ Each result is `{ status, source: 'manual' | 'presence' | 'calendar' | 'default'
 
 Every such entry also appears as a row in the Today list.
 
-**`WhereaboutsSheet`**: "Where is <name>?" with the eight statuses as large emoji buttons (96 px tall) and "Clear".
+**`WhereaboutsSheet`**: "Where is <name>?" with the seven statuses as large emoji buttons (96 px tall) and "Clear".
 - **Who can be set:** in parent mode the sheet also lists every member to pick from; otherwise only the tapped member can be set.
 - **What a choice does:** it writes a `manual` override expiring in 4 hours (`MANUAL_OVERRIDE_HOURS`), replacing any earlier manual one. Clear deletes the manual override, so presence or the calendar takes over.
 
@@ -100,7 +100,7 @@ curl -X POST https://neves-famiily-command.vercel.app/api/presence \
 
 - **Request:**
   - `member`: matched against `family_members.name`, case-insensitively.
-  - `status`: one of the eight statuses, or `"clear"` to remove that member's presence row.
+  - `status`: one of the seven statuses (`home`, `school`, `work`, `church`, `playdate`, `football`, `sleeping`), or `"clear"` to remove that member's presence row.
   - `ttl_minutes`: optional; default 180, allowed 1 to 10080.
 - **Effect:** deletes the member's existing `presence` row, then inserts a new one (source `presence`, `expires_at` = now + TTL). A manual override set on the board still wins.
 - **Responses:**

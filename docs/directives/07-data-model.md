@@ -380,7 +380,7 @@ Where a family member is, set by hand on the board (`manual`) or by a phone thro
 |---|---|---|---|---|
 | `id` | uuid | No | `gen_random_uuid()` | Primary key |
 | `member_id` | uuid | No | -- | FK to `family_members.id` (`ON DELETE CASCADE`), indexed |
-| `status` | text | No | -- | `home`, `school`, `work`, `church`, `grandma`, `playdate`, `travelling`, `sleeping` (check) |
+| `status` | text | No | -- | `home`, `school`, `work`, `church`, `playdate`, `football`, `sleeping` (check `whereabouts_overrides_status_check`) |
 | `source` | text | No | -- | `manual` or `presence` (check); manual beats presence |
 | `set_at` | timestamptz | No | `now()` | When it was set; newest wins within a source |
 | `expires_at` | timestamptz | Yes | `null` | Ignored after this time; null = until replaced or cleared |
@@ -411,8 +411,7 @@ Calendar title keyword → status, used when no override is active. Same migrati
 - **Church:** church, igreja, kerk → `church`
 - **Work:** work, office → `work`
 - **Working from home:** WFH, home office, thuiswerken → `home`, priority 10 so they beat "work"/"office"
-- **Grandma:** vovó, vovo, grandma → `grandma`
-- **Travelling:** travel, flight, train → `travelling`
+- **Football:** football, voetbal, futebol, soccer → `football` (migration `20261024120000_whereabouts_football_instead_of_grandma_travelling.sql`, which also removed the grandma and travelling statuses and their rules)
 
 Add member-specific rows for personal places, e.g. `(Thiago's id, 'Zaandam office', 'work')`. There is no editing UI yet; add rows in the Supabase table editor.
 

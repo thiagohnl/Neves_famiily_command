@@ -20,8 +20,7 @@ const rule = (keyword: string, status: WhereaboutsRule['status'], priority = 0, 
 const SEED_RULES = [
   rule('school', 'school'), rule('playdate', 'playdate'), rule('church', 'church'),
   rule('work', 'work'), rule('office', 'work'), rule('WFH', 'home', 10),
-  rule('vovó', 'grandma'), rule('grandma', 'grandma'),
-  rule('travel', 'travelling'), rule('flight', 'travelling'), rule('train', 'travelling'),
+  rule('football', 'football'), rule('voetbal', 'football'), rule('futebol', 'football'),
 ];
 
 const item = (title: string, start: string, end: string | undefined, memberIds: string[] = []): TodayItem => ({
@@ -46,6 +45,7 @@ describe('titleHasKeyword', () => {
     expect(titleHasKeyword('Almoço na Vovó', 'vovó')).toBe(true);
     expect(titleHasKeyword('Homework club', 'work')).toBe(false);
     expect(titleHasKeyword('Training', 'train')).toBe(false);
+    expect(titleHasKeyword('Charlie voetbal training', 'voetbal')).toBe(true);
     expect(titleHasKeyword('Thiago @ Zaandam office', 'Zaandam office')).toBe(true);
     expect(titleHasKeyword('Anything', '  ')).toBe(false);
   });
@@ -72,13 +72,13 @@ describe('resolveWhereabouts', () => {
   it('puts a manual override above presence, and presence above the calendar', () => {
     const now = at(16, 10);
     const items = finalizeTodayItems([item('Playdate', '15:30', '17:30', [CHARLIE.id])], minutes(now));
-    const presence = override(CHARLIE.id, 'travelling', 'presence', at(16, 5), at(19));
-    const manual = override(CHARLIE.id, 'grandma', 'manual', at(15), at(19));
+    const presence = override(CHARLIE.id, 'school', 'presence', at(16, 5), at(19));
+    const manual = override(CHARLIE.id, 'football', 'manual', at(15), at(19));
 
     expect(resolveWhereabouts([CHARLIE], [presence], SEED_RULES, items, now)[CHARLIE.id])
-      .toMatchObject({ status: 'travelling', source: 'presence' });
+      .toMatchObject({ status: 'school', source: 'presence' });
     expect(resolveWhereabouts([CHARLIE], [presence, manual], SEED_RULES, items, now)[CHARLIE.id])
-      .toMatchObject({ status: 'grandma', source: 'manual', label: "👵 Grandma's" });
+      .toMatchObject({ status: 'football', source: 'manual', label: '⚽ Football' });
   });
 
   it('ignores expired overrides, and treats a null expiry as still active', () => {
@@ -102,9 +102,9 @@ describe('resolveWhereabouts', () => {
     const items = finalizeTodayItems([item('WFH, work calls all day', '08:00', '18:00')], minutes(now));
     expect(resolveWhereabouts([CAROL], [], SEED_RULES, items, now)[CAROL.id].status).toBe('home');
 
-    const gym = [rule('gym', 'travelling', 0, THIAGO.id)];
+    const gym = [rule('gym', 'football', 0, THIAGO.id)];
     const gymItems = finalizeTodayItems([item('Gym', '09:30', '11:00')], minutes(now));
-    expect(resolveWhereabouts([THIAGO], [], gym, gymItems, now)[THIAGO.id].status).toBe('travelling');
+    expect(resolveWhereabouts([THIAGO], [], gym, gymItems, now)[THIAGO.id].status).toBe('football');
     expect(resolveWhereabouts([CAROL], [], gym, gymItems, now)[CAROL.id].source).toBe('default');
   });
 

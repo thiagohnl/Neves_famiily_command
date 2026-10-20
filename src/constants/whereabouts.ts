@@ -3,9 +3,8 @@ export type Whereabout =
   | 'school'
   | 'work'
   | 'church'
-  | 'grandma'
   | 'playdate'
-  | 'travelling'
+  | 'football'
   | 'sleeping';
 
 export const WHEREABOUT_EMOJI: Record<Whereabout, string> = {
@@ -13,9 +12,8 @@ export const WHEREABOUT_EMOJI: Record<Whereabout, string> = {
   school: '🏫',
   work: '💼',
   church: '⛪',
-  grandma: '👵',
   playdate: '🧒',
-  travelling: '🚗',
+  football: '⚽',
   sleeping: '😴',
 };
 
@@ -24,15 +22,17 @@ export const WHEREABOUT_LABEL: Record<Whereabout, string> = {
   school: 'School',
   work: 'Work',
   church: 'Church',
-  grandma: "Grandma's",
   playdate: 'Playdate',
-  travelling: 'Travelling',
+  football: 'Football',
   sleeping: 'Sleeping',
 };
 
-/** Clock face positions, clockwise from the top in 45° steps. */
+/**
+ * Clock face positions, clockwise from the top in equal steps. Short words
+ * (Work, Home) sit at the sides, where a label runs straight towards the faces.
+ */
 export const CLOCK_ORDER: Whereabout[] = [
-  'school', 'playdate', 'work', 'travelling', 'sleeping', 'grandma', 'home', 'church',
+  'school', 'playdate', 'work', 'football', 'sleeping', 'home', 'church',
 ];
 
 export const isWhereabout = (value: unknown): value is Whereabout =>

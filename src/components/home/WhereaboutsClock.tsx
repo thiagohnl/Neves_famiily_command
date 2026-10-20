@@ -12,20 +12,20 @@ const GUIDE_R = 140;
 const STEP_DEG = 360 / CLOCK_ORDER.length;
 
 /**
- * Label blocks (emoji over word), placed by hand rather than on a circle: each
- * is anchored on its outer side and grows inwards, so even "Travelling" keeps
- * its outer corner about 10 px inside the ring. Side and diagonal labels are
- * anchored at their outer edge (end on the right, start on the left).
+ * Label blocks (emoji over word) for the seven positions (≈51.4° apart),
+ * placed by hand rather than on a circle. Each is anchored on its outer side
+ * (end on the right, start on the left) and grows inwards, keeping its outer
+ * corner ~10 px inside the ring and its inner end clear of a face on its hand.
+ * Pairs mirror each other: Playdate/Church, Work/Home, Football/Sleeping.
  */
 const LABEL_POS: Record<Whereabout, { x: number; y: number; anchor: 'start' | 'middle' | 'end' }> = {
   school: { x: C, y: 50, anchor: 'middle' },
-  playdate: { x: C + 128, y: 92, anchor: 'end' },
-  work: { x: C + 192, y: C, anchor: 'end' },
-  travelling: { x: C + 125, y: 350, anchor: 'end' },
-  sleeping: { x: C, y: SIZE - 50, anchor: 'middle' },
-  grandma: { x: C - 125, y: 350, anchor: 'start' },
-  home: { x: C - 192, y: C, anchor: 'start' },
-  church: { x: C - 128, y: 92, anchor: 'start' },
+  playdate: { x: C + 142, y: 104, anchor: 'end' },
+  work: { x: C + 185, y: 258, anchor: 'end' },
+  football: { x: C + 98, y: 370, anchor: 'end' },
+  sleeping: { x: C - 98, y: 370, anchor: 'start' },
+  home: { x: C - 185, y: 258, anchor: 'start' },
+  church: { x: C - 142, y: 104, anchor: 'start' },
 };
 
 const statusAngle = (status: Whereabout) => CLOCK_ORDER.indexOf(status) * STEP_DEG;

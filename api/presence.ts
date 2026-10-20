@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { timingSafeEqual } from 'node:crypto';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const STATUSES = ['home', 'school', 'work', 'church', 'grandma', 'playdate', 'travelling', 'sleeping'];
+const STATUSES = ['home', 'school', 'work', 'church', 'playdate', 'football', 'sleeping'];
 const DEFAULT_TTL_MIN = 180;
 const MAX_TTL_MIN = 7 * 24 * 60;
 
