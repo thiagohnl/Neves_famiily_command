@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Activity, PlannedActivity } from '../types';
+import { useBoardRefresh } from './useBoardRefresh';
 
 export const useActivities = () => {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -8,10 +9,11 @@ export const useActivities = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { tick } = useBoardRefresh();
+
+  // Only the first load shows a spinner; later refreshes update in place
   const fetchAll = async () => {
     try {
-      setLoading(true);
-      
       // Fetch activities
       const { data: activitiesData, error: activitiesError } = await supabase
         .from('activities')
@@ -132,7 +134,7 @@ export const useActivities = () => {
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [tick]);
 
   return { 
     activities, 

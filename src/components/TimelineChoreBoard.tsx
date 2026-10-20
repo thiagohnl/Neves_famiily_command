@@ -9,6 +9,11 @@ import { VerseOfTheDayCard } from './VerseOfTheDayCard';
 import { useTodayMeal } from '../hooks/useMeals';
 import { useActivities } from '../hooks/useActivities';
 import { useFunIdeas } from '../hooks/useFunIdeas';
+import { useBoardRefresh } from '../hooks/useBoardRefresh';
+import { useSeason } from '../hooks/useSeason';
+import { useNow } from '../hooks/useNow';
+import { useFollowNowLine } from '../hooks/useFollowNowLine';
+import { SeasonHero } from './SeasonHero';
 import { getChoreEmoji } from '../constants/chore_emojis';
 import dayjs from 'dayjs';
 
@@ -76,46 +81,15 @@ export const TimelineChoreBoard: React.FC<{
   const { activities, plannedActivities } = useActivities();
   const { ideas: funIdeas } = useFunIdeas();
   const [showConfetti, setShowConfetti] = React.useState(false);
-  const [currentTime, setCurrentTime] = React.useState(new Date());
+  const currentTime = useNow();
   const [selectedMemberId, setSelectedMemberId] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
+  // The timeline scrolls inside its own window and follows the current time
+  useFollowNowLine(currentTime, () => 160);
 
-  // The timeline scrolls inside its own window and follows the current time.
-  // A manual scroll pauses the auto-follow for 2 minutes so it doesn't fight the user.
-  const lastUserScroll = React.useRef(0);
-  const isAutoScroll = React.useRef(false);
-
-  React.useEffect(() => {
-    const containers = Array.from(document.querySelectorAll<HTMLElement>('[data-timeline-scroll]'));
-    const onScroll = () => { if (!isAutoScroll.current) lastUserScroll.current = Date.now(); };
-    containers.forEach(c => c.addEventListener('scroll', onScroll, { passive: true }));
-    return () => containers.forEach(c => c.removeEventListener('scroll', onScroll));
-  }, []);
-
-  React.useEffect(() => {
-    if (Date.now() - lastUserScroll.current < 120000) return;
-    const t = setTimeout(() => {
-      const containers = document.querySelectorAll<HTMLElement>('[data-timeline-scroll]');
-      for (const container of Array.from(containers)) {
-        if (container.offsetParent === null) continue;
-        const line = container.querySelector<HTMLElement>('[data-now-line]');
-        if (!line) continue;
-        const lineTop = line.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-        isAutoScroll.current = true;
-        container.scrollTo({ top: Math.max(0, lineTop - 160), behavior: 'smooth' });
-        setTimeout(() => { isAutoScroll.current = false; }, 1000);
-      }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [currentTime]);
-
-  const today = dayjs();
-  const todayName = today.format('dddd');
-  const todayDate = today.format('YYYY-MM-DD');
+  const { today: todayDate } = useBoardRefresh();
+  const { hero } = useSeason();
+  const todayName = dayjs(todayDate).format('dddd');
 
   const funIdeasToday = React.useMemo(() => {
     return funIdeas.filter(idea => idea.scheduled_date === todayDate);
@@ -148,6 +122,7 @@ export const TimelineChoreBoard: React.FC<{
   return (
     <div className="space-y-6">
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
+      {hero && <SeasonHero hero={hero} />}
       {/* Summary Cards */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl p-4 shadow-sm border border-gray-200 z-10 flex flex-col"><div className="flex items-center gap-3 mb-2"><Trophy className="text-purple-600" /><h3 className="font-bold text-purple-800 text-lg">Family Progress</h3></div><div className="flex-1 flex flex-col justify-center"><div className="grid grid-cols-2 gap-2">{familyMembers.map(m => (<div key={m.id} className="text-center"><img src={m.photo_url || `https://ui-avatars.com/api/?name=${m.name.charAt(0)}&background=random`} alt={m.name} className="w-10 h-10 rounded-full mx-auto object-cover" /><p className="text-xs font-bold">{m.name}</p><p className="text-xs">{m.points} pts</p></div>))}</div></div></div>

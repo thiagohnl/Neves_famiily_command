@@ -36,6 +36,8 @@ Stores family member profiles.
 | `photo_url` | text | Yes | `null` | URL to profile photo |
 | `points` | integer | No | `0` | Accumulated chore points |
 | `is_parent` | boolean | No | `false` | Whether member is a parent |
+| `gender` | text | Yes | `null` | Optional gender |
+| `birth_date` | date | Yes | `null` | Date of birth; drives the birthday season |
 | `created_at` | timestamptz | No | `now()` | Creation timestamp |
 
 **Used by:** `useChores` (fetched alongside chores), `EditFamilyMembers`, all tab components via props.
@@ -49,6 +51,8 @@ interface FamilyMember {
   photo_url?: string;
   points: number;
   is_parent: boolean;
+  gender?: string | null;
+  birth_date?: string | null;
   created_at?: string;
 }
 ```
@@ -108,18 +112,56 @@ Stores application configuration. Single-row table with `id = 'default'`.
 | `theme` | text | No | `'light'` | Theme: `'light'`, `'dark'`, or `'kids'` |
 | `email_summaries` | boolean | No | `false` | Weekly email toggle |
 | `parent_pin` | text | Yes | `'1234'` | Parent mode PIN (plain text) |
+| `board_layout` | text | No | `'home'` | Board tab layout: `'home'` or `'timeline'`; check `IN ('timeline','home')`. The app treats a missing value as `'home'`. |
+| `language` | text | No | `'en'` | Language of season strings; check `IN ('en','pt','nl')`. The rest of the app stays English. |
+| `active_season` | text | Yes | `null` | Manual season override: `'sinterklaas'`, `'christmas'` or `'none'` (force no season). `null` = automatic by date. No DB check, so new season keys need no migration; unknown values are treated as auto. |
+| `season_dates` | jsonb | No | `'{}'` | Per-year season dates (see below) |
 | `created_at` | timestamptz | No | `now()` | Creation timestamp |
 | `updated_at` | timestamptz | Yes | `null` | Last update timestamp |
 
-**Used by:** `useAppSettings` (via `dataGateway`), `useParentAuth`, `SettingsModal`.
+**Migrations:** `20261020120000_add_season_settings.sql` adds `language`, `active_season`, `season_dates`; `20261021120000_add_board_layout_setting.sql` adds `board_layout`.
+
+**`season_dates` shape** (all dates `YYYY-MM-DD`, every key optional; edited in Settings → Seasons):
+```json
+{
+  "sinterklaas": {
+    "intocht": "2026-11-14",
+    "intocht_local": "2026-11-15",
+    "pakjesavond": "2026-12-05",
+    "shoe_nights": ["2026-11-09", "2026-11-16", "2026-11-23", "2026-11-30"],
+    "journaal_start": "2026-11-09"
+  }
+}
+```
+Sinterklaas only runs automatically when both `journaal_start` and `pakjesavond` are set. Christmas (6–26 Dec) needs no dates. Birthdays come from `family_members.birth_date`.
+
+**Used by:** `useAppSettings` (via `dataGateway`), `useParentAuth`, `SettingsModal`, `useSeasonSource` (season engine in `src/seasons/`).
 
 **TypeScript interface:**
 ```ts
+type Language = 'en' | 'pt' | 'nl';
+
+interface SinterklaasDates {
+  intocht?: string;
+  intocht_local?: string;
+  pakjesavond?: string;
+  shoe_nights?: string[];
+  journaal_start?: string;
+}
+
+interface SeasonDates {
+  sinterklaas?: SinterklaasDates;
+}
+
 interface AppSettings {
   id: string;
   title: string;
   theme: 'light' | 'dark' | 'kids';
   email_summaries: boolean;
+  board_layout?: 'timeline' | 'home';
+  language?: Language;
+  active_season?: string | null;
+  season_dates?: SeasonDates;
   parent_pin?: string;
   created_at?: string;
   updated_at?: string;
@@ -235,7 +277,7 @@ Stores schedule events (one-time and recurring).
 | `notes` | text | Yes | `null` | Optional notes |
 | `created_at` | timestamptz | No | `now()` | Creation timestamp |
 
-**Used by:** `Schedule` component (direct Supabase queries), `TodaysScheduleCard`.
+**Used by:** `Schedule` component (direct Supabase queries), `useScheduleEvents` (via `dataGateway.listScheduleEvents`) for `TodaysScheduleCard` and the Board's Today list.
 
 ---
 

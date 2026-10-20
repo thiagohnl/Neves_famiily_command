@@ -1,5 +1,6 @@
 import React from 'react';
 import { BookOpen } from 'lucide-react';
+import { useBoardRefresh } from '../hooks/useBoardRefresh';
 
 // Family-friendly verses; the day of the year picks one, so every device
 // shows the same verse all day and it rotates automatically at midnight.
@@ -28,15 +29,18 @@ interface CachedVerse {
   text: string;
 }
 
-const todayKey = () => new Date().toISOString().slice(0, 10);
-
 const dayOfYear = () => {
   const now = new Date();
   const start = new Date(now.getFullYear(), 0, 0);
   return Math.floor((now.getTime() - start.getTime()) / 86400000);
 };
 
-export const VerseOfTheDayCard: React.FC = () => {
+/** 'card' for the timeline layout's summary row, 'strip' for a single line under the home layout's list. */
+export const VerseOfTheDayCard: React.FC<{ variant?: 'card' | 'strip'; className?: string }> = ({
+  variant = 'card',
+  className = '',
+}) => {
+  const { today } = useBoardRefresh();
   const [verse, setVerse] = React.useState<CachedVerse | null>(() => {
     try {
       const cached = localStorage.getItem(CACHE_KEY);
@@ -48,7 +52,7 @@ export const VerseOfTheDayCard: React.FC = () => {
 
   React.useEffect(() => {
     const reference = VERSES[dayOfYear() % VERSES.length];
-    if (verse?.date === todayKey()) return;
+    if (verse?.date === today) return;
 
     let cancelled = false;
     fetch(`https://bible-api.com/${encodeURIComponent(reference)}?translation=web`)
@@ -59,7 +63,7 @@ export const VerseOfTheDayCard: React.FC = () => {
       .then(data => {
         if (cancelled || !data.text) return;
         const fresh: CachedVerse = {
-          date: todayKey(),
+          date: today,
           reference: data.reference || reference,
           text: String(data.text).replace(/\s+/g, ' ').trim(),
         };
@@ -68,7 +72,18 @@ export const VerseOfTheDayCard: React.FC = () => {
       })
       .catch(() => { /* keep whatever is cached; a stale verse beats an empty card */ });
     return () => { cancelled = true; };
-  }, [verse?.date]);
+  }, [verse?.date, today]);
+
+  if (variant === 'strip') {
+    if (!verse) return null;
+    return (
+      <div className={`flex items-center gap-3 rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-2 min-w-0 ${className}`}>
+        <BookOpen size={22} className="text-indigo-600 shrink-0" />
+        <p className="text-lg italic text-indigo-900 truncate">“{verse.text}”</p>
+        <span className="text-base font-bold text-indigo-700 shrink-0">{verse.reference}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl p-4 shadow-sm border border-gray-200 z-10 flex flex-col">

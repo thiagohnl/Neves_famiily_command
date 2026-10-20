@@ -78,7 +78,11 @@ export const useChores = () => {
     try {
       const success = await completeChore(choreId, points, assignedTo);
       if (success) {
-        await loadData();
+        // Show the completion right away, then sync quietly (no loading state)
+        const completedAt = new Date().toISOString();
+        setChores(prev => prev.map(c => (c.id === choreId ? { ...c, is_completed: true, completed_at: completedAt } : c)));
+        setFamilyMembers(prev => prev.map(m => (m.id === assignedTo ? { ...m, points: m.points + points } : m)));
+        await loadData(true);
       }
       return success;
     } catch (err) {
@@ -120,10 +124,6 @@ export const useChores = () => {
   
   useEffect(() => {
     loadData();
-    // The tablet stays open all day: refresh periodically so a new day's
-    // reset (and edits from other devices) show up without a manual reload
-    const interval = setInterval(() => loadData(true), 5 * 60 * 1000);
-    return () => clearInterval(interval);
   }, []);
 
   return {

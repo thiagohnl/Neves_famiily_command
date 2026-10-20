@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Upload, Palette, Mail, Type, Lock } from 'lucide-react';
-import { AppSettings } from '../types';
+import { X, Save, Upload, Palette, Mail, Type, Lock, Sparkles, LayoutGrid } from 'lucide-react';
+import { AppSettings, Language, SinterklaasDates } from '../types';
+import { LANGUAGES } from '../seasons/i18n';
+import { SEASON_OVERRIDES } from '../seasons';
 import toast from 'react-hot-toast';
 import { useFocusTrap } from '../utils/useFocusTrap';
 
@@ -10,22 +12,49 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: AppSettings;
   onUpdateSettings: (updates: Partial<AppSettings>) => Promise<boolean>;
+  /** The Seasons section is only shown, and only saved, in parent mode. */
+  isParentMode?: boolean;
 }
+
+const BOARD_LAYOUTS: { value: 'home' | 'timeline'; label: string; emoji: string; hint: string }[] = [
+  { value: 'home', label: 'Home', emoji: '🏠', hint: 'Clock and one Today list' },
+  { value: 'timeline', label: 'Timeline', emoji: '🗓️', hint: 'Summary cards and per-person timeline' },
+];
+
+const SINTERKLAAS_DATE_FIELDS: { key: Exclude<keyof SinterklaasDates, 'shoe_nights'>; label: string }[] = [
+  { key: 'journaal_start', label: 'Sinterklaasjournaal starts' },
+  { key: 'intocht', label: 'Intocht (national arrival)' },
+  { key: 'intocht_local', label: 'Arrival in our town' },
+  { key: 'pakjesavond', label: 'Pakjesavond' },
+];
+
+const seasonFormFrom = (settings: AppSettings) => ({
+  language: settings.language ?? 'en',
+  override: settings.active_season ?? 'auto',
+  sinterklaas: {
+    ...settings.season_dates?.sinterklaas,
+    shoe_nights: [...(settings.season_dates?.sinterklaas?.shoe_nights ?? [])],
+  } as SinterklaasDates,
+});
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   settings,
-  onUpdateSettings
+  onUpdateSettings,
+  isParentMode = false
 }) => {
   const [formData, setFormData] = useState({
     title: settings.title,
     theme: settings.theme,
-    email_summaries: settings.email_summaries
+    email_summaries: settings.email_summaries,
+    board_layout: settings.board_layout ?? 'home'
   });
   const [isSaving, setIsSaving] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [showPinField, setShowPinField] = useState(false);
+  const [seasonForm, setSeasonForm] = useState(() => seasonFormFrom(settings));
+  const [newShoeNight, setNewShoeNight] = useState('');
   const focusTrapRef = useFocusTrap<HTMLDivElement>(isOpen);
 
   const themes = [
@@ -39,6 +68,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const updates: Partial<AppSettings> = { ...formData };
     if (newPin.length === 4) {
       updates.parent_pin = newPin;
+    }
+    if (isParentMode) {
+      // Drop cleared inputs so an empty date doesn't land in the JSON as ''
+      const sinterklaas = Object.fromEntries(
+        Object.entries(seasonForm.sinterklaas).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : !!v))
+      ) as SinterklaasDates;
+      updates.language = seasonForm.language;
+      updates.active_season = seasonForm.override === 'auto' ? null : seasonForm.override;
+      updates.season_dates = { ...settings.season_dates, sinterklaas };
     }
     const success = await onUpdateSettings(updates);
 
@@ -63,11 +101,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setFormData({
       title: settings.title,
       theme: settings.theme,
-      email_summaries: settings.email_summaries
+      email_summaries: settings.email_summaries,
+      board_layout: settings.board_layout ?? 'home'
     });
     setNewPin('');
     setShowPinField(false);
+    setSeasonForm(seasonFormFrom(settings));
+    setNewShoeNight('');
   };
+
+  // Settings load after this modal mounts, so pick up the saved values each time it opens.
+  // Otherwise a save could write the empty defaults back over the season dates.
+  useEffect(() => {
+    if (isOpen) handleReset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  const setSinterklaasDate = (key: keyof SinterklaasDates, value: string) =>
+    setSeasonForm(f => ({ ...f, sinterklaas: { ...f.sinterklaas, [key]: value } }));
+
+  const addShoeNight = () => {
+    if (!newShoeNight) return;
+    setSeasonForm(f => {
+      const nights = new Set([...(f.sinterklaas.shoe_nights ?? []), newShoeNight]);
+      return { ...f, sinterklaas: { ...f.sinterklaas, shoe_nights: [...nights].sort() } };
+    });
+    setNewShoeNight('');
+  };
+
+  const removeShoeNight = (night: string) =>
+    setSeasonForm(f => ({
+      ...f,
+      sinterklaas: { ...f.sinterklaas, shoe_nights: (f.sinterklaas.shoe_nights ?? []).filter(n => n !== night) },
+    }));
+
+  const inputClass = 'w-full min-h-[44px] px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all';
 
   return (
     <AnimatePresence>
@@ -152,6 +220,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
+              {/* Board Layout */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                  <LayoutGrid size={16} />
+                  Board Layout
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {BOARD_LAYOUTS.map(layout => (
+                    <button
+                      key={layout.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, board_layout: layout.value })}
+                      className={`min-h-[44px] p-3 rounded-xl border-2 text-left transition-all ${
+                        formData.board_layout === layout.value ? 'border-purple-500 bg-purple-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="font-medium text-gray-800">{layout.emoji} {layout.label}</div>
+                      <div className="text-xs text-gray-500">{layout.hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Email Summaries */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
@@ -180,6 +271,101 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Receive weekly progress reports with achievements and stats
                 </p>
               </div>
+
+              {/* Seasons (parent only) */}
+              {isParentMode && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <Sparkles size={16} />
+                    Seasons
+                  </label>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="season-language" className="block text-xs text-gray-500 mb-1">Season language</label>
+                        <select
+                          id="season-language"
+                          value={seasonForm.language}
+                          onChange={(e) => setSeasonForm({ ...seasonForm, language: e.target.value as Language })}
+                          className={inputClass}
+                        >
+                          {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="season-override" className="block text-xs text-gray-500 mb-1">Season</label>
+                        <select
+                          id="season-override"
+                          value={seasonForm.override}
+                          onChange={(e) => setSeasonForm({ ...seasonForm, override: e.target.value })}
+                          className={inputClass}
+                        >
+                          <option value="auto">Auto (by date)</option>
+                          {SEASON_OVERRIDES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 mb-2">🎁 Sinterklaas dates (this year)</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {SINTERKLAAS_DATE_FIELDS.map(field => (
+                          <div key={field.key}>
+                            <label htmlFor={`sk-${field.key}`} className="block text-xs text-gray-500 mb-1">{field.label}</label>
+                            <input
+                              id={`sk-${field.key}`}
+                              type="date"
+                              value={seasonForm.sinterklaas[field.key] ?? ''}
+                              onChange={(e) => setSinterklaasDate(field.key, e.target.value)}
+                              className={inputClass}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="sk-shoe-night" className="block text-xs text-gray-500 mb-1">👟 Shoe nights</label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {(seasonForm.sinterklaas.shoe_nights ?? []).map(night => (
+                          <button
+                            key={night}
+                            type="button"
+                            onClick={() => removeShoeNight(night)}
+                            className="min-h-[44px] px-3 rounded-full bg-red-50 border border-red-200 text-red-800 text-sm font-medium flex items-center gap-1"
+                            aria-label={`Remove shoe night ${night}`}
+                          >
+                            {night} <X size={14} />
+                          </button>
+                        ))}
+                        {(seasonForm.sinterklaas.shoe_nights ?? []).length === 0 && (
+                          <span className="text-xs text-gray-500">No shoe nights yet</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          id="sk-shoe-night"
+                          type="date"
+                          value={newShoeNight}
+                          onChange={(e) => setNewShoeNight(e.target.value)}
+                          className={inputClass}
+                        />
+                        <button
+                          type="button"
+                          onClick={addShoeNight}
+                          disabled={!newShoeNight}
+                          className="min-h-[44px] px-4 bg-purple-500 text-white rounded-xl font-medium disabled:opacity-50"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Auto shows Sinterklaas from the journaal start to Pakjesavond, Christmas from 6 to 26 December, and birthdays on the day.
+                  </p>
+                </div>
+              )}
 
               {/* Change Parent PIN */}
               <div>

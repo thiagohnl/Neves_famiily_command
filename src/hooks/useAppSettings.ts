@@ -7,7 +7,11 @@ export const useAppSettings = () => {
     id: '',
     title: 'Family Chore Board',
     theme: 'light',
-    email_summaries: false
+    email_summaries: false,
+    board_layout: 'home',
+    language: 'en',
+    active_season: null,
+    season_dates: {}
   });
   const [loading, setLoading] = useState(true);
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { useBoardRefresh } from './useBoardRefresh';
 
 export interface FunIdea {
   id: string;
@@ -20,9 +21,11 @@ export const useFunIdeas = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { tick } = useBoardRefresh();
+
+  // Only the first load shows a spinner; later refreshes update in place
   const fetchIdeas = async () => {
     try {
-      setLoading(true);
       setError(null);
       
       const { data, error } = await supabase
@@ -115,7 +118,7 @@ export const useFunIdeas = () => {
 
   useEffect(() => {
     fetchIdeas();
-  }, []);
+  }, [tick]);
 
   return {
     ideas,

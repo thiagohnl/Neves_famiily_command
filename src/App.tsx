@@ -4,6 +4,9 @@ import { Toaster } from 'react-hot-toast';
 import { useChores } from './hooks/useChores';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useParentAuth } from './hooks/useParentAuth';
+import { BoardRefreshContext, useBoardRefreshSource } from './hooks/useBoardRefresh';
+import { SeasonContext, useSeasonSource } from './hooks/useSeason';
+import { applySeasonPalette } from './seasons/palette';
 import { EditFamilyMembers } from './components/EditFamilyMembers';
 import { SettingsModal } from './components/SettingsModal';
 import { ParentAuthModal } from './components/ParentAuthModal';
@@ -13,6 +16,9 @@ import { CallFamilyButtons } from './components/CallFamilyButtons';
 // Lazy-loaded tab components for code splitting
 const TimelineChoreBoard = React.lazy(() =>
   import('./components/TimelineChoreBoard').then(m => ({ default: m.TimelineChoreBoard }))
+);
+const HomeBoard = React.lazy(() =>
+  import('./components/home/HomeBoard').then(m => ({ default: m.HomeBoard }))
 );
 const ChoreManagement = React.lazy(() => import('./components/ChoreManagement'));
 const MealPlan = React.lazy(() =>
@@ -42,6 +48,20 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showParentAuth, setShowParentAuth] = useState(false);
   const [currentTab, setCurrentTab] = useState<TabView>('board');
+  const boardRefresh = useBoardRefreshSource();
+  const season = useSeasonSource(settings, familyMembers, boardRefresh.today);
+  const [refreshSpinning, setRefreshSpinning] = useState(false);
+
+  // Chores load on mount; every later tick (timer, wake, midnight, button) reloads them quietly
+  useEffect(() => {
+    if (boardRefresh.tick > 0) refetch(true);
+  }, [boardRefresh.tick]);
+
+  const handleManualRefresh = () => {
+    boardRefresh.refresh();
+    setRefreshSpinning(true);
+    setTimeout(() => setRefreshSpinning(false), 800);
+  };
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -63,7 +83,8 @@ function App() {
     root.classList.remove('dark', 'kids-theme');
     if (settings.theme === 'dark') root.classList.add('dark');
     else if (settings.theme === 'kids') root.classList.add('kids-theme');
-  }, [settings.theme]);
+    applySeasonPalette(root, season.palette);
+  }, [settings.theme, season.palette]);
 
   const getThemeClasses = () => { /* ... same as before ... */ };
   const getHeaderClasses = () => { /* ... same as before ... */ };
@@ -73,6 +94,8 @@ function App() {
   if (error) { /* ... same as before ... */ }
 
   return (
+    <BoardRefreshContext.Provider value={boardRefresh}>
+    <SeasonContext.Provider value={season}>
     <div className={`min-h-screen ${getThemeClasses()}`}>
       <Toaster position="top-center" />
 
@@ -96,7 +119,7 @@ function App() {
                 {isOnline ? <Wifi size={18} className="text-green-500" /> : <WifiOff size={18} className="text-red-500" />}
                 <button onClick={() => setShowSettings(true)} className="p-2 hover:bg-gray-100 rounded-md transition-colors" aria-label="Settings"><Palette size={18} /></button>
                 {isParentMode && <button onClick={() => setShowEditMembers(true)} className="p-2 hover:bg-gray-100 rounded-md transition-colors" aria-label="Edit members"><Settings size={18} /></button>}
-                <button onClick={refetch} className="p-2 hover:bg-gray-100 rounded-md transition-colors" aria-label="Refresh"><RefreshCw size={18} /></button>
+                <button onClick={handleManualRefresh} className="p-2 hover:bg-gray-100 rounded-md transition-colors" aria-label="Refresh"><RefreshCw size={18} className={refreshSpinning ? 'animate-spin' : ''} /></button>
               </div>
             </div>
           </div>
@@ -150,7 +173,9 @@ function App() {
         className="relative pt-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8"
       >
         <Suspense fallback={<TabSpinner />}>
-          {currentTab === 'board' && <TimelineChoreBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} />}
+          {currentTab === 'board' && (settings.board_layout === 'timeline'
+            ? <TimelineChoreBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} />
+            : <HomeBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} />)}
           {currentTab === 'chores' && <ChoreManagement familyMembers={familyMembers} chores={chores} isParentMode={isParentMode} onAddChore={addChore} onRefresh={refetch} />}
           {currentTab === 'meals' && <MealPlan familyMembers={familyMembers} isParentMode={isParentMode} />}
           {currentTab === 'schedule' && <Schedule familyMembers={familyMembers} isParentMode={isParentMode} />}
@@ -158,9 +183,11 @@ function App() {
         </Suspense>
       </main>
 
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onUpdateSettings={updateSettings} />
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onUpdateSettings={updateSettings} isParentMode={isParentMode} />
       <ParentAuthModal isOpen={showParentAuth} onClose={() => setShowParentAuth(false)} onAuthenticate={(pin) => { const success = authenticateParent(pin); if (success) setShowParentAuth(false); return success; }} />
     </div>
+    </SeasonContext.Provider>
+    </BoardRefreshContext.Provider>
   );
 }
 export default App;

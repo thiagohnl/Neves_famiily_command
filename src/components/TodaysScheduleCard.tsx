@@ -1,23 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 import { FamilyMember } from '../types';
-import { supabase } from '../lib/supabase';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
 import dayjs from 'dayjs';
-
-interface ScheduleEvent {
-  id: string;
-  title: string;
-  date: string | null;
-  start_time: string;
-  end_time: string;
-  assigned_member_ids: string[];
-  is_recurring: boolean;
-  recurring_days: string[];
-  color: string;
-  notes?: string;
-}
+import { useBoardRefresh } from '../hooks/useBoardRefresh';
+import { ScheduleEvent, useScheduleEvents } from '../hooks/useScheduleEvents';
 
 interface TodaysScheduleCardProps {
   familyMembers: FamilyMember[];
@@ -32,45 +20,12 @@ const timeToMinutes = (timeStr: string = "00:00") => {
 export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
   familyMembers,
 }) => {
-  const [events, setEvents] = useState<ScheduleEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [today, setToday] = useState(dayjs().format('YYYY-MM-DD'));
+  const { today } = useBoardRefresh();
+  const { todaysEvents: dayEvents, loading } = useScheduleEvents(today);
   const { events: googleEvents } = useGoogleCalendar(today, today);
-
-  useEffect(() => {
-    fetchTodaysEvents();
-
-    const interval = setInterval(() => {
-      const now = dayjs();
-      if (now.hour() === 0 && now.minute() === 0) {
-        setToday(now.format('YYYY-MM-DD'));
-        fetchTodaysEvents();
-      }
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchTodaysEvents = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('schedule_events')
-        .select('*')
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-      setEvents(data || []);
-    } catch (error) {
-      console.error('Error fetching events:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const todaysEvents = useMemo(() => {
     const todayDate = today;
-    const todayName = dayjs(todayDate).format('dddd');
     const now = dayjs();
     const currentMinutes = timeToMinutes(now.format('HH:mm'));
 
@@ -84,36 +39,17 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
       }
     > = [];
 
-    events.forEach(event => {
-      if (event.is_recurring) {
-        if (event.recurring_days.includes(todayName)) {
-          event.assigned_member_ids.forEach(memberId => {
-            const startMinutes = timeToMinutes(event.start_time);
-            const endMinutes = timeToMinutes(event.end_time);
-            const isOngoing = currentMinutes >= startMinutes && currentMinutes < endMinutes;
-
-            scheduledEvents.push({
-              ...event,
-              memberId,
-              isOngoing,
-              isPast: currentMinutes >= endMinutes,
-            });
-          });
-        }
-      } else if (event.date === todayDate) {
-        event.assigned_member_ids.forEach(memberId => {
-          const startMinutes = timeToMinutes(event.start_time);
-          const endMinutes = timeToMinutes(event.end_time);
-          const isOngoing = currentMinutes >= startMinutes && currentMinutes < endMinutes;
-
-          scheduledEvents.push({
-            ...event,
-            memberId,
-            isOngoing,
-            isPast: currentMinutes >= endMinutes,
-          });
+    dayEvents.forEach(event => {
+      event.assigned_member_ids.forEach(memberId => {
+        const startMinutes = timeToMinutes(event.start_time);
+        const endMinutes = timeToMinutes(event.end_time);
+        scheduledEvents.push({
+          ...event,
+          memberId,
+          isOngoing: currentMinutes >= startMinutes && currentMinutes < endMinutes,
+          isPast: currentMinutes >= endMinutes,
         });
-      }
+      });
     });
 
     // Read-only Google Calendar events for today
@@ -144,7 +80,7 @@ export const TodaysScheduleCard: React.FC<TodaysScheduleCardProps> = ({
     });
 
     return scheduledEvents;
-  }, [events, googleEvents, today]);
+  }, [dayEvents, googleEvents, today]);
 
   const displayEvents = todaysEvents.slice(0, 5);
   const moreCount = Math.max(0, todaysEvents.length - 5);

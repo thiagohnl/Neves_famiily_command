@@ -4,6 +4,7 @@ import { Plus, CreditCard as Edit2, Trash2, X, Clock, ChevronLeft, ChevronRight,
 import { FamilyMember } from '../types';
 import { supabase } from '../lib/supabase';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
+import { MEMBER_COLORS } from '../constants/memberColors';
 import toast from 'react-hot-toast';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -127,17 +128,6 @@ const layoutEventsForDay = (events: any[]): EventWithLayout[] => {
 
   return prepared;
 };
-
-const MEMBER_COLORS = [
-  '#8B5CF6', // Purple
-  '#EC4899', // Pink
-  '#10B981', // Green
-  '#F59E0B', // Amber
-  '#3B82F6', // Blue
-  '#EF4444', // Red
-  '#06B6D4', // Cyan
-  '#8B5CF6', // Purple (repeat for more members)
-];
 
 const EventModal: React.FC<{
   event: Partial<ScheduleEvent> | null;

@@ -48,11 +48,32 @@ export interface PlannedActivity {
 
 export type ChorePoints = 5 | 10 | 20;
 
+export type Language = 'en' | 'pt' | 'nl';
+
+export interface SinterklaasDates {
+  intocht?: string;        // YYYY-MM-DD, national arrival
+  intocht_local?: string;  // YYYY-MM-DD, arrival in our town
+  pakjesavond?: string;    // YYYY-MM-DD
+  shoe_nights?: string[];  // YYYY-MM-DD[]
+  journaal_start?: string; // YYYY-MM-DD, first Sinterklaasjournaal
+}
+
+export interface SeasonDates {
+  sinterklaas?: SinterklaasDates;
+}
+
 export interface AppSettings {
   id: string;
   title: string;
   theme: 'light' | 'dark' | 'kids';
   email_summaries: boolean;
+  /** Board tab layout; anything but 'timeline' renders the home layout. */
+  board_layout?: 'timeline' | 'home';
+  /** Language of season strings only; the rest of the app stays English. */
+  language?: Language;
+  /** Manual season override ('sinterklaas', 'christmas', 'none'); null means auto by date. */
+  active_season?: string | null;
+  season_dates?: SeasonDates;
   parent_pin?: string;
   created_at?: string;
   updated_at?: string;

@@ -1,6 +1,7 @@
 // src/hooks/useMeals.ts
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { useBoardRefresh } from './useBoardRefresh';
 import {
   listSavedMeals,
   createSavedMeal,
@@ -136,14 +137,14 @@ export function useWeekMealPlan(weekStartISO: string) {
 
 // ---------- Today (for dashboard/timeline) ----------
 export function useTodayMeal() {
-  const todayISO = dayjs().format('YYYY-MM-DD');
+  const { tick, today: todayISO } = useBoardRefresh();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Background refreshes keep showing the current meals instead of "Loading..."
   async function refetch() {
     try {
-      setLoading(true);
       setItems(await getTodayPlan(todayISO));
       setError(null);
     } catch (e: any) {
@@ -155,7 +156,7 @@ export function useTodayMeal() {
 
   useEffect(() => {
     refetch();
-  }, []);
+  }, [tick, todayISO]);
 
   const lunch = items.find((r) => r.slot === 'lunch') ?? null;
   const dinner = items.find((r) => r.slot === 'dinner') ?? null;

@@ -12,6 +12,21 @@
   }
 }
 
+/* Season palette: light-theme fallbacks, overridden on <html> while a season is active */
+:root {
+  --season-bg: #FFFFFF;
+  --season-surface: #FFFFFF;
+  --season-accent: #8B5CF6;
+  --season-accent-text: #FFFFFF;
+  --season-button: #8B5CF6;
+  --season-gold: #F59E0B;
+}
+
+/* Tint the page only during a season; dark mode keeps its own background */
+html.season-active:not(.dark) body {
+  background-color: var(--season-bg);
+}
+
 /* Kids Theme Styles */
 .kids-theme {
   --primary-color: #D93636;

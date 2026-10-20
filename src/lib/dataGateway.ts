@@ -70,6 +70,16 @@ export const data = {
     }
   },
 
+  // SCHEDULE EVENTS (dated and recurring; callers pick the day)
+  async listScheduleEvents() {
+    const { data, error } = await supabase
+      .from('schedule_events')
+      .select('*')
+      .order('start_time', { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  },
+
   // MEALS LIBRARY
   async listMeals() {
     try {
