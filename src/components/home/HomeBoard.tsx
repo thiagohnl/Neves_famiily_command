@@ -12,7 +12,9 @@ import { ConfettiCelebration } from '../ConfettiCelebration';
 import { RecipeViewModal } from '../RecipeViewModal';
 import { SeasonHero } from '../SeasonHero';
 import { VerseOfTheDayCard } from '../VerseOfTheDayCard';
-import { WhereaboutsClockPlaceholder } from './WhereaboutsClockPlaceholder';
+import { useWhereabouts } from '../../hooks/useWhereabouts';
+import { WhereaboutsClock } from './WhereaboutsClock';
+import { WhereaboutsSheet } from './WhereaboutsSheet';
 import { PointsLegend } from './PointsLegend';
 import { TodayList } from './TodayList';
 
@@ -20,18 +22,21 @@ interface HomeBoardProps {
   familyMembers: FamilyMember[];
   chores: Chore[];
   onCompleteChore: (choreId: string, points: number, assignedTo: string) => Promise<boolean>;
+  isParentMode: boolean;
 }
 
 /**
  * Board tab, home layout: whereabouts clock and points on the left, one merged
  * "Today" list on the right. Sized to the viewport so only the list scrolls.
  */
-export const HomeBoard: React.FC<HomeBoardProps> = ({ familyMembers, chores, onCompleteChore }) => {
+export const HomeBoard: React.FC<HomeBoardProps> = ({ familyMembers, chores, onCompleteChore, isParentMode }) => {
   const { today } = useBoardRefresh();
-  const { hero } = useSeason();
+  const { hero, season } = useSeason();
   const { items, dinner, nowMinutes } = useTodayItems(chores, familyMembers);
+  const { whereabouts, setStatus } = useWhereabouts(familyMembers, items);
   const [showConfetti, setShowConfetti] = useState(false);
   const [recipeMealId, setRecipeMealId] = useState<string | null>(null);
+  const [whereaboutsMemberId, setWhereaboutsMemberId] = useState<string | null>(null);
 
   // Keep the NOW line about a third of the way down the list. Also re-follow when
   // the list changes: calendar and schedule rows arrive after the first render.
@@ -47,10 +52,15 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ familyMembers, chores, onC
     <div className="font-body flex flex-col md:flex-row gap-6 md:h-[calc(100vh-10rem)] md:min-h-[560px]">
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
 
-      {/* Left: clock (placeholder until the whereabouts clock lands) and points */}
-      <section className="hidden md:flex w-[470px] shrink-0 flex-col items-center gap-5 pt-2" aria-label="Family">
-        <WhereaboutsClockPlaceholder familyMembers={familyMembers} />
-        <PointsLegend familyMembers={familyMembers} />
+      {/* Left: whereabouts clock and points */}
+      <section className="hidden md:flex w-[470px] shrink-0 flex-col items-center gap-4 pt-2" aria-label="Family">
+        <WhereaboutsClock
+          familyMembers={familyMembers}
+          whereabouts={whereabouts}
+          clockEmoji={season?.clockEmoji}
+          onSelectMember={setWhereaboutsMemberId}
+        />
+        <PointsLegend familyMembers={familyMembers} whereabouts={whereabouts} onSelectMember={setWhereaboutsMemberId} />
       </section>
 
       {/* Right: today */}
@@ -82,6 +92,14 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ familyMembers, chores, onC
       </section>
 
       <RecipeViewModal mealId={recipeMealId} onClose={() => setRecipeMealId(null)} />
+      <WhereaboutsSheet
+        memberId={whereaboutsMemberId}
+        familyMembers={familyMembers}
+        whereabouts={whereabouts}
+        isParentMode={isParentMode}
+        onPick={setStatus}
+        onClose={() => setWhereaboutsMemberId(null)}
+      />
     </div>
   );
 };

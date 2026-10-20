@@ -372,6 +372,74 @@ interface PlannedActivity {
 
 ---
 
+### whereabouts_overrides
+
+Where a family member is, set by hand on the board (`manual`) or by a phone through `/api/presence` (`presence`). Wins over calendar inference until it expires. Migration `20261022120000_create_whereabouts_tables.sql`.
+
+| Column | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| `id` | uuid | No | `gen_random_uuid()` | Primary key |
+| `member_id` | uuid | No | -- | FK to `family_members.id` (`ON DELETE CASCADE`), indexed |
+| `status` | text | No | -- | `home`, `school`, `work`, `church`, `grandma`, `playdate`, `travelling`, `sleeping` (check) |
+| `source` | text | No | -- | `manual` or `presence` (check); manual beats presence |
+| `set_at` | timestamptz | No | `now()` | When it was set; newest wins within a source |
+| `expires_at` | timestamptz | Yes | `null` | Ignored after this time; null = until replaced or cleared |
+
+- At most one row per member and source by convention: the board replaces the member's `manual` row (4 h expiry), the presence endpoint replaces the `presence` row (default 180 min).
+- The table is in the `supabase_realtime` publication; the board subscribes to it.
+
+**Used by:** `src/lib/whereaboutsApi.ts` (`listActiveOverrides`, `setManualOverride`, `subscribeToOverrides`), `useWhereabouts`, `api/presence.ts`.
+
+---
+
+### whereabouts_rules
+
+Calendar title keyword → status, used when no override is active. Same migration.
+
+| Column | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| `id` | uuid | No | `gen_random_uuid()` | Primary key |
+| `member_id` | uuid | Yes | `null` | FK to `family_members.id` (`ON DELETE CASCADE`), indexed; null = applies to any member |
+| `keyword` | text | No | -- | Whole-word, case-insensitive match against the Today item title (may be several words, e.g. "Zaandam office") |
+| `status` | text | No | -- | Same values as `whereabouts_overrides.status` (check) |
+| `priority` | int | No | `0` | Highest wins when several rules match |
+| `created_at` | timestamptz | No | `now()` | Creation timestamp |
+
+**Seeded rules** (all members):
+- **School:** school, escola → `school`
+- **Playdate:** playdate → `playdate`
+- **Church:** church, igreja, kerk → `church`
+- **Work:** work, office → `work`
+- **Working from home:** WFH → `home`, priority 10 so it beats "work"
+- **Grandma:** vovó, vovo, grandma → `grandma`
+- **Travelling:** travel, flight, train → `travelling`
+
+Add member-specific rows for personal places, e.g. `(Thiago's id, 'Zaandam office', 'work')`. There is no editing UI yet; add rows in the Supabase table editor.
+
+**Used by:** `listRules` in `src/lib/whereaboutsApi.ts`, `useWhereabouts`.
+
+**TypeScript interfaces** (`src/lib/whereabouts.ts`):
+```ts
+interface WhereaboutsOverride {
+  id: string;
+  member_id: string;
+  status: Whereabout;
+  source: 'manual' | 'presence';
+  set_at: string;
+  expires_at: string | null;
+}
+
+interface WhereaboutsRule {
+  id: string;
+  member_id: string | null;
+  keyword: string;
+  status: Whereabout;
+  priority: number;
+}
+```
+
+---
+
 ## RPC Functions
 
 ### increment_points
@@ -426,6 +494,8 @@ family_members
   |-- (M:N) --> schedule_events.assigned_member_ids (array)
   |-- (M:N) --> activities.assigned_member_ids (array)
   |-- (1:N) --> planned_activities.member_id
+  |-- (1:N) --> whereabouts_overrides.member_id (cascade delete)
+  |-- (1:N) --> whereabouts_rules.member_id (nullable, cascade delete)
 
 saved_meals
   |-- (1:N) --> meal_plans.meal_id

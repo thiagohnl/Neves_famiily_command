@@ -13,10 +13,10 @@ In both, kids tap "Done!" to complete a chore and get the confetti celebration, 
 
 ## Home Layout (`board_layout = 'home'`)
 
-**Files:** `src/components/home/` -- `HomeBoard.tsx`, `TodayList.tsx`, `WhereaboutsClockPlaceholder.tsx`, `PointsLegend.tsx`, `MemberAvatar.tsx`. Data from `src/hooks/useTodayItems.ts`, merge logic in `src/lib/todayItems.ts` (pure, tested in `src/hooks/__tests__/todayItems.test.ts`).
+**Files:** `src/components/home/` -- `HomeBoard.tsx`, `TodayList.tsx`, `WhereaboutsClock.tsx`, `WhereaboutsSheet.tsx`, `PointsLegend.tsx`, `MemberAvatar.tsx`. Data from `src/hooks/useTodayItems.ts`, merge logic in `src/lib/todayItems.ts` (pure, tested in `src/hooks/__tests__/todayItems.test.ts`).
 
 **Layout.** On `md` and up: a row sized `h-[calc(100vh-10rem)]` (header + tab bar + main padding) so the page never scrolls at 1280×800; only the list scrolls. Fonts: Nunito for the body (`font-body`), Lora italic for the "Today" heading (`font-display`), loaded from Google Fonts in `index.html` and applied to this layout only.
-- **Left column** (fixed 470 px, hidden below `md`): `WhereaboutsClockPlaceholder` -- a 420 px ring in `season.accent` with each member's face spaced round it, clockwise from the top (replaced by the real whereabouts clock in Phase 3) -- and `PointsLegend` below it: colour dot, name and ⭐ points per member in a 2×2 grid. The leaderboard stays on the Chores tab.
+- **Left column** (fixed 470 px, hidden below `md`): the `WhereaboutsClock` (see below) and `PointsLegend` under it -- colour dot, name, ⭐ points and the member's whereabouts ("🧒 Playdate · until 17:30") in a 2×2 grid; tapping a row opens the whereabouts sheet. The leaderboard stays on the Chores tab.
 - **Right column:** header row (serif italic "Today", the date, and a dinner chip on the right that opens `RecipeViewModal` when the dinner has a recipe), the scrolling list, then the bottom strip: `SeasonHero` (`size="strip"`) when a season is active, then `VerseOfTheDayCard variant="strip"` (one truncated line). With a hero showing and a viewport under 760 px tall, the verse hides first.
 
 **`useTodayItems(chores, familyMembers)`** returns `{ items, dinner, nowMinutes }`. Chores are passed in from App's `useChores` state (calling `useChores()` again would be a second copy that misses completions); every other source reloads on the board refresh `tick`, and the date always comes from `useBoardRefresh().today`. Sources:
@@ -48,6 +48,54 @@ Emoji for events and Google items come from the title: playdate 🧒, school/dro
 **Completing a chore:** Done → `onCompleteChore` → `useChores.completeChore`, which on success updates the chore (`is_completed`, `completed_at`) and the member's points in local state straight away, then refetches quietly (`loadData(true)`). The row turns muted without a reload; `HomeBoard` shows `ConfettiCelebration`.
 
 **Auto-scroll:** the list container carries `data-timeline-scroll` and the NOW line `data-now-line`; `useFollowNowLine(nowMinutes, c => c.clientHeight / 3)` keeps the line a third of the way down. The trigger is `nowMinutes|items.length`, so it also re-follows when late-loading sources (calendar, schedule) change the list. It pauses for 2 minutes after a manual scroll. The same hook drives the timeline layout.
+
+## Whereabouts Clock (home layout)
+
+A Weasley-style clock: one hand per member pointing at where they are.
+
+**Statuses** (`src/constants/whereabouts.ts`): `home` 🏠, `school` 🏫, `work` 💼, `church` ⛪, `grandma` 👵 (label "Grandma's"), `playdate` 🧒, `travelling` 🚗, `sleeping` 😴. A season can swap emoji via `Season.clockEmoji`.
+
+**Resolution** (`resolveWhereabouts` in `src/lib/whereabouts.ts`, pure, tested in `src/hooks/__tests__/whereabouts.test.ts`), per member, first match wins:
+1. **Override** from `whereabouts_overrides` with `expires_at` null or in the future. `manual` beats `presence`; within a source the newest `set_at` wins.
+2. **Calendar**: a Today item that is happening now (`isNow`) and is assigned to the member or to the whole family (`memberIds` empty), whose title contains a `whereabouts_rules` keyword. Rules apply to everyone (`member_id` null) or to one member; the highest `priority` wins. Keywords match case-insensitively as whole words, accent-safe ("vovó" matches, "work" does not match "Homework"). `until` = the item's end time.
+3. **Default**: children (`is_parent = false`) are `sleeping` from 20:00 to 07:00; otherwise `home`.
+
+Each result is `{ status, source: 'manual' | 'presence' | 'calendar' | 'default', label: '🧒 Playdate', until? }`. Expiry is re-checked every minute (`useNow`), so a lapsed override hands back to the calendar without a reload.
+
+**`useWhereabouts(familyMembers, todayItems)`** (`src/hooks/useWhereabouts.ts`): loads active overrides and rules through `src/lib/whereaboutsApi.ts` on every refresh `tick`, re-loads overrides on any Supabase realtime change to `whereabouts_overrides` (so a phone update moves the hand within seconds), and resolves with the Today items `HomeBoard` already has (passed in rather than calling `useTodayItems()` a second time). Returns `{ whereabouts, setStatus(memberId, status | null) }`.
+
+**`WhereaboutsClock`** (`src/components/home/WhereaboutsClock.tsx`): a 420×420 SVG with an outer ring stroked `--season-accent`, a dashed inner guide ring, and eight emoji + word labels (19 px bold) at 45° steps, clockwise from the top: School, Playdate, Work, Travelling, Sleeping, Grandma's, Home, Church.
+- **Hands:** each is a 6 px line in the member colour from the centre to radius 115, ending in the member's photo (circular clip) or emoji avatar on their colour, with a 4 px white edge. The avatar is counter-rotated so faces stay upright.
+- **Shared status:** when members share a status, the second hand is 45 px shorter so the faces stack along it. From the third on there's no room left, so they fan out ±28° at full and then short length (`handSlots`).
+- **Motion:** hands rotate with a framer-motion spring and take the short way round.
+- **Tap:** tapping a face (or a legend row) opens the sheet.
+
+**`WhereaboutsSheet`**: "Where is <name>?" with the eight statuses as large emoji buttons (96 px tall) and "Clear".
+- **Who can be set:** in parent mode the sheet also lists every member to pick from; otherwise only the tapped member can be set.
+- **What a choice does:** it writes a `manual` override expiring in 4 hours (`MANUAL_OVERRIDE_HOURS`), replacing any earlier manual one. Clear deletes the manual override, so presence or the calendar takes over.
+
+### Presence endpoint
+
+`api/presence.ts` (Vercel function) lets a phone report where someone is -- Home Assistant, Tasker or an iOS Shortcut calls it when the phone joins or leaves the home WiFi.
+
+```bash
+curl -X POST https://neves-famiily-command.vercel.app/api/presence \
+  -H "Content-Type: application/json" \
+  -H "x-presence-key: $PRESENCE_SHARED_KEY" \
+  -d '{"member": "Thiago", "status": "home", "ttl_minutes": 180}'
+```
+
+- **Request:**
+  - `member`: matched against `family_members.name`, case-insensitively.
+  - `status`: one of the eight statuses, or `"clear"` to remove that member's presence row.
+  - `ttl_minutes`: optional; default 180, allowed 1 to 10080.
+- **Effect:** deletes the member's existing `presence` row, then inserts a new one (source `presence`, `expires_at` = now + TTL). A manual override set on the board still wins.
+- **Responses:**
+  - `200 { ok, member, status, expires_at }` on success.
+  - `401` wrong or missing key; `400` bad input; `404` unknown member; `405` not a POST.
+  - `503` when `PRESENCE_SHARED_KEY` (or the Supabase URL/anon key) isn't set.
+- **Configuration:** `PRESENCE_SHARED_KEY` is a server-only env var (never `VITE_`); keep it in Vercel and in `.env` for local use. The function reaches Supabase with `SUPABASE_URL`/`SUPABASE_ANON_KEY`, falling back to the existing `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`.
+- **Tests:** `src/hooks/__tests__/presence.test.ts`.
 
 ## Timeline Layout (`board_layout = 'timeline'`)
 
@@ -209,8 +257,9 @@ Recurring activities are expanded: activities with `recurring_days` matching tod
 |---|---|---|
 | `HomeBoard` | `src/components/home/HomeBoard.tsx` | Board page, home layout |
 | `TodayList` | `src/components/home/TodayList.tsx` | Merged Today rows with NOW line and Done buttons |
-| `WhereaboutsClockPlaceholder` | `src/components/home/WhereaboutsClockPlaceholder.tsx` | Faces round a ring until the whereabouts clock exists |
-| `PointsLegend` | `src/components/home/PointsLegend.tsx` | Colour dot, name, points per member |
+| `WhereaboutsClock` | `src/components/home/WhereaboutsClock.tsx` | SVG whereabouts clock, one hand per member |
+| `WhereaboutsSheet` | `src/components/home/WhereaboutsSheet.tsx` | Pick a status for a member (manual override) |
+| `PointsLegend` | `src/components/home/PointsLegend.tsx` | Colour dot, name, points and whereabouts per member |
 | `MemberAvatar` | `src/components/home/MemberAvatar.tsx` | Photo, or emoji on the member colour |
 | `TimelineChoreBoard` | `src/components/TimelineChoreBoard.tsx` | Board page, timeline layout |
 | `ConfettiCelebration` | `src/components/ConfettiCelebration.tsx` | Confetti on chore completion |
@@ -234,3 +283,4 @@ Recurring activities are expanded: activities with `recurring_days` matching tod
 | `useGoogleCalendar` | `src/hooks/useGoogleCalendar.ts` | Read-only Google Calendar events from `/api/calendar` |
 | `useNow` | `src/hooks/useNow.ts` | Current time, ticking every minute |
 | `useFollowNowLine` | `src/hooks/useFollowNowLine.ts` | Auto-scroll that keeps `[data-now-line]` in view inside `[data-timeline-scroll]` |
+| `useWhereabouts` | `src/hooks/useWhereabouts.ts` | Resolved whereabouts per member + `setStatus` (overrides/rules via `src/lib/whereaboutsApi.ts`, realtime on overrides) |

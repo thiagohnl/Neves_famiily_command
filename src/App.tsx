@@ -175,7 +175,7 @@ function App() {
         <Suspense fallback={<TabSpinner />}>
           {currentTab === 'board' && (settings.board_layout === 'timeline'
             ? <TimelineChoreBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} />
-            : <HomeBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} />)}
+            : <HomeBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} isParentMode={isParentMode} />)}
           {currentTab === 'chores' && <ChoreManagement familyMembers={familyMembers} chores={chores} isParentMode={isParentMode} onAddChore={addChore} onRefresh={refetch} />}
           {currentTab === 'meals' && <MealPlan familyMembers={familyMembers} isParentMode={isParentMode} />}
           {currentTab === 'schedule' && <Schedule familyMembers={familyMembers} isParentMode={isParentMode} />}
