@@ -7,7 +7,7 @@ import { TodayItem } from '../../types/today';
 const members: FamilyMember[] = [{ id: 'k1', name: 'Charlie', avatar: '🧒', points: 0, is_parent: false }];
 
 const items: TodayItem[] = [
-  { id: 'a', kind: 'google', emoji: '🏫', title: 'School drop off', start: '08:00', end: '08:30', memberIds: [], isPast: true, isNow: false },
+  { id: 'a', kind: 'chore', emoji: '👟', title: 'Shoes away', start: '08:00', memberIds: ['k1'], isPast: true, isNow: false },
   {
     id: 'b', kind: 'chore', emoji: '🧹', title: 'Sweep', subtitle: 'Chore, 10 points', start: '17:00', memberIds: ['k1'],
     isPast: false, isNow: false, completable: { choreId: 'c1', points: 10, assignedTo: 'k1' },
@@ -19,13 +19,14 @@ describe('TodayList', () => {
     const onComplete = vi.fn();
     render(<TodayList items={items} familyMembers={members} nowMinutes={16 * 60 + 10} onComplete={onComplete} />);
 
-    expect(screen.getByText('School drop off')).toHaveClass('line-through');
+    expect(screen.getByText('Shoes away')).toHaveClass('line-through');
     expect(screen.getByText('NOW 16:10')).toBeInTheDocument();
-    expect(screen.getByLabelText('Charlie')).toBeInTheDocument();
+    // Faces on both the done row and the open card
+    expect(screen.getAllByLabelText('Charlie')).toHaveLength(2);
 
     const rows = screen.getAllByRole('listitem');
     expect(rows.map(r => (r.hasAttribute('data-now-line') ? 'NOW' : r.textContent))).toEqual([
-      expect.stringContaining('School drop off'),
+      expect.stringContaining('Shoes away'),
       'NOW',
       expect.stringContaining('Sweep'),
     ]);

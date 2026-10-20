@@ -33,8 +33,9 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ familyMembers, chores, onC
   const [showConfetti, setShowConfetti] = useState(false);
   const [recipeMealId, setRecipeMealId] = useState<string | null>(null);
 
-  // Keep the NOW line about a third of the way down the list
-  useFollowNowLine(nowMinutes, container => container.clientHeight / 3);
+  // Keep the NOW line about a third of the way down the list. Also re-follow when
+  // the list changes: calendar and schedule rows arrive after the first render.
+  useFollowNowLine(`${nowMinutes}|${items.length}`, container => container.clientHeight / 3);
 
   const handleComplete = async (item: TodayItem) => {
     if (!item.completable) return;

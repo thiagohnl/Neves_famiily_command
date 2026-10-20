@@ -211,6 +211,14 @@ describe('buildTodayItems', () => {
     expect(byTitle('Dinner prep: Lasanha').kind).toBe('meal');
   });
 
+  it('skips the dinner prep item when the calendar already has a dinner entry', () => {
+    const items = buildTodayItems(sources({
+      googleEvents: [{ id: 'g', title: 'Dinner prep', displayDate: TODAY, start_time: '16:30', end_time: '17:00', allDay: false }],
+      dinner: { id: 'd1', meal_name: 'Tacos' },
+    }), at('12:00'));
+    expect(items.map(i => i.title)).toEqual(['Dinner prep']);
+  });
+
   it('adds no dinner item when no dinner is planned', () => {
     expect(buildTodayItems(sources(), at('12:00'))).toEqual([]);
   });

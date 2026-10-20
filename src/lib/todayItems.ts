@@ -230,16 +230,24 @@ export interface TodaySources {
   rituals: TodayItem[];
 }
 
-export const buildTodayItems = (src: TodaySources, nowMinutes: number): TodayItem[] =>
-  finalizeTodayItems(
+const DINNER_IN_TITLE = /dinner|jantar|avondeten/i;
+
+export const buildTodayItems = (src: TodaySources, nowMinutes: number): TodayItem[] => {
+  const calendar = [
+    ...scheduleItems(src.scheduleEvents),
+    ...googleItems(src.googleEvents, src.members, src.today),
+  ];
+  // A calendar entry like "Dinner prep" already covers it; don't add a second dinner row
+  const dinnerOnCalendar = calendar.some(item => DINNER_IN_TITLE.test(item.title));
+  return finalizeTodayItems(
     [
       ...choreItems(src.chores, src.members, src.today),
-      ...scheduleItems(src.scheduleEvents),
-      ...googleItems(src.googleEvents, src.members, src.today),
+      ...calendar,
       ...activityItems(src.activities, src.plannedActivities, src.today),
       ...funItems(src.funIdeas, src.today),
-      ...dinnerItem(src.dinner),
+      ...(dinnerOnCalendar ? [] : dinnerItem(src.dinner)),
       ...src.rituals,
     ],
     nowMinutes
   );
+};

@@ -17,22 +17,29 @@ interface TodayListProps {
 const formatNow = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
-const Faces: React.FC<{ ids: string[]; familyMembers: FamilyMember[] }> = ({ ids, familyMembers }) => (
-  <span className="flex -space-x-1.5 shrink-0">
+const Faces: React.FC<{ ids: string[]; familyMembers: FamilyMember[]; size?: number; className?: string }> = ({
+  ids,
+  familyMembers,
+  size = 28,
+  className = '',
+}) => (
+  <span className={`flex -space-x-1.5 shrink-0 ${className}`}>
     {ids.map(id => {
       const member = familyMembers.find(m => m.id === id);
       return member ? (
-        <MemberAvatar key={id} member={member} color={memberColor(familyMembers, id)} size={28} className="border-2 border-white" />
+        <MemberAvatar key={id} member={member} color={memberColor(familyMembers, id)} size={size} className="border-2 border-white" />
       ) : null;
     })}
   </span>
 );
 
-const PastRow: React.FC<{ item: TodayItem }> = ({ item }) => (
+// Faces stay on done rows too, so two kids' copies of the same chore are told apart
+const PastRow: React.FC<{ item: TodayItem; familyMembers: FamilyMember[] }> = ({ item, familyMembers }) => (
   <li className="flex items-center gap-3 px-3 py-1.5 text-[17px] text-gray-400">
     <CheckCircle size={18} className="text-green-500 shrink-0" />
     <span className="w-14 shrink-0 font-semibold">{item.start}</span>
     <span className="shrink-0 opacity-60">{item.emoji}</span>
+    <Faces ids={item.memberIds} familyMembers={familyMembers} size={22} className="opacity-60" />
     <span className="line-through truncate">{item.title}</span>
   </li>
 );
@@ -91,7 +98,7 @@ export const TodayList: React.FC<TodayListProps> = ({ items, familyMembers, nowM
       {items.map((item, i) => (
         <React.Fragment key={item.id}>
           {i === lineAt && nowLine}
-          {item.isPast ? <PastRow item={item} /> : <ItemCard item={item} familyMembers={familyMembers} onComplete={onComplete} />}
+          {item.isPast ? <PastRow item={item} familyMembers={familyMembers} /> : <ItemCard item={item} familyMembers={familyMembers} onComplete={onComplete} />}
         </React.Fragment>
       ))}
       {lineAt === items.length && nowLine}

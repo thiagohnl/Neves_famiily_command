@@ -28,7 +28,7 @@ In both, kids tap "Done!" to complete a chore and get the confetti celebration, 
 | `google` | `useGoogleCalendar(today, today)` | Title kept as typed (so "Playdate at Jonas's house" keeps the host); subtitle "Until HH:mm" + location; `memberIds` = family members whose name appears as a whole word in the title (Google events have no assignees). All-day events become `allDay` items. |
 | `activity` | `useActivities` | Planned for today plus recurring on today's weekday, merged into one item per activity with all its members. No start time → `allDay`. |
 | `fun` | `useFunIdeas` | Ideas with `scheduled_date` = today, `allDay`. |
-| `meal` | `useTodayMeal` | One 16:30 "Dinner prep: <name>" item, only when a dinner is planned. |
+| `meal` | `useTodayMeal` | One 16:30 "Dinner prep: <name>" item, only when a dinner is planned and no schedule/Google item today mentions dinner (`dinner`, `jantar`, `avondeten`) -- that entry already covers it. |
 | `ritual` | `useSeason().rituals` | Season rituals, e.g. 18:00 Sinterklaasjournaal. |
 
 Emoji for events and Google items come from the title: playdate 🧒, school/drop off/pick up 🏫, dentist 🦷, church ⛪, work/office 💼, otherwise 📅 (Portuguese and Dutch keywords included).
@@ -41,13 +41,13 @@ Emoji for events and Google items come from the title: playdate 🧒, school/dro
 - The red NOW line (`nowLineIndex`) goes before the first timed item that hasn't started yet.
 
 **`TodayList` rows:**
-- **Past:** compact 17 px row, muted grey, green check, time, emoji and struck-through title.
+- **Past:** compact 17 px row, muted grey, green check, time, emoji, the members' faces (22 px, faded -- so two kids' copies of one chore stay distinguishable) and struck-through title.
 - **Current and upcoming:** white card with a left border in the item colour, 64 px time column (18 px bold, "All day" for all-day items), emoji, 22 px bold title, the members' faces, a 16 px subtitle, and for open chores a green 52 px "Done!" button. An item in progress gets a ring in `season.accent`.
 - **Feedback:** taps use `whileTap` only; nothing needs hover.
 
 **Completing a chore:** Done → `onCompleteChore` → `useChores.completeChore`, which on success updates the chore (`is_completed`, `completed_at`) and the member's points in local state straight away, then refetches quietly (`loadData(true)`). The row turns muted without a reload; `HomeBoard` shows `ConfettiCelebration`.
 
-**Auto-scroll:** the list container carries `data-timeline-scroll` and the NOW line `data-now-line`; `useFollowNowLine(nowMinutes, c => c.clientHeight / 3)` keeps the line a third of the way down, and pauses for 2 minutes after a manual scroll. The same hook drives the timeline layout.
+**Auto-scroll:** the list container carries `data-timeline-scroll` and the NOW line `data-now-line`; `useFollowNowLine(nowMinutes, c => c.clientHeight / 3)` keeps the line a third of the way down. The trigger is `nowMinutes|items.length`, so it also re-follows when late-loading sources (calendar, schedule) change the list. It pauses for 2 minutes after a manual scroll. The same hook drives the timeline layout.
 
 ## Timeline Layout (`board_layout = 'timeline'`)
 
