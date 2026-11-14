@@ -3,7 +3,7 @@ import { TodayItem } from '../types/today';
 import { HeroSpec, Season } from './types';
 import { isWithin, sleepsUntil } from './dates';
 import { goalChips } from './goals';
-import { Translate } from './i18n';
+import { Translate, weekdayName } from './i18n';
 
 export const JOURNAAL_START = '18:00';
 export const JOURNAAL_END = '18:10';
@@ -48,6 +48,24 @@ export const journaalSoonBanner = (items: TodayItem[], nowMinutes: number, t: Tr
   return soon ? t('journaalSoon') : null;
 };
 
+/**
+ * Our town's arrival in words, shared by the hero subline and the line under the
+ * season calendar so the two never disagree: "3 sleeps until he visits our town",
+ * "Tomorrow he sails into Haarlem", "🚢 Sinterklaas comes to Haarlem today!".
+ */
+export const localArrivalText = (sleeps: number, t: Translate): string => {
+  if (sleeps === 0) return t('comesToHaarlemToday');
+  if (sleeps === 1) return t('sailsTomorrow');
+  return t('sleepsUntilLocalVisit', { n: sleeps });
+};
+
+/** "🥾 Wellies tonight!" on a shoe night, else "🥾 Next wellies: Friday", or null when none are left. */
+export const welliesText = (today: string, shoeNights: string[], t: Translate): string | null => {
+  if (shoeNights.includes(today)) return t('welliesTonight');
+  const next = [...shoeNights].sort().find(night => night > today);
+  return next ? t('nextWellies', { day: weekdayName(next, t.lang) }) : null;
+};
+
 /** Time of today's first calendar entry mentioning the intocht, if any. */
 const intochtTime = (calendar: { title: string; start: string; allDay?: boolean }[]): string | null =>
   calendar
@@ -77,30 +95,35 @@ export const sinterklaas: Season = {
     const toPakjesavond = sleepsUntil(today, d.pakjesavond);
     if (toPakjesavond < 0) return null;
 
-    // Count down to the arrival first, then to Pakjesavond
+    // Count down to the national arrival, then to Pakjesavond
     let headline: string;
-    const toIntocht = d.intocht ? sleepsUntil(today, d.intocht) : -1;
-    if (toIntocht > 0) headline = t('sleepsUntilArrival', { n: toIntocht });
-    else if (toIntocht === 0) headline = t('arrivesToday');
-    else if (toPakjesavond > 0) headline = t('sleepsUntilPakjesavond', { n: toPakjesavond });
-    else headline = t('pakjesavondToday');
-
     let subline = '';
+    const toIntocht = d.intocht ? sleepsUntil(today, d.intocht) : -1;
     const toLocal = d.intocht_local ? sleepsUntil(today, d.intocht_local) : -1;
-    if (toLocal > 0) subline = t('sleepsUntilLocalVisit', { n: toLocal });
-    else if (toLocal === 0) {
+    if (toLocal === 0) {
       // Our own intocht: the boat arrives in Haarlem
-      headline = t('sailsIntoHaarlem');
+      headline = t('comesToHaarlemToday');
       const time = intochtTime(ctx.calendar);
       subline = time ? t('intochtAt', { time }) : t('intochtAround');
-    } else if (isWithin(today, d.journaal_start, d.pakjesavond)) subline = t('journaalTonight');
+    } else if (toIntocht === 0) {
+      headline = t('inNetherlands');
+      if (toLocal > 0) subline = localArrivalText(toLocal, t);
+    } else if (toIntocht > 0) {
+      headline = t('sleepsUntilArrival', { n: toIntocht });
+      if (toLocal > 0) subline = localArrivalText(toLocal, t);
+    } else {
+      headline = toPakjesavond > 0 ? t('sleepsUntilPakjesavond', { n: toPakjesavond }) : t('pakjesavondToday');
+      if (toLocal > 0) subline = localArrivalText(toLocal, t);
+      else if (isWithin(today, d.journaal_start, d.pakjesavond)) subline = t('journaalTonight');
+    }
 
-    // The shoe chip wins on shoe nights; otherwise the children's goals replace "Shoe tonight? No"
-    const shoeTonight = (d.shoe_nights ?? []).includes(today);
+    // Wellies chip: "tonight" on shoe nights (always shown); on other nights the
+    // children's goals replace "Next wellies", which hides when none are left
+    const shoeNights = d.shoe_nights ?? [];
+    const wellies = welliesText(today, shoeNights, t);
     const goals = goalChips(ctx.goals, '🍫');
-    const secondary = shoeTonight || goals.length === 0
-      ? [{ label: t('shoeTonight'), value: shoeTonight ? t('yes') : t('no') }]
-      : goals;
+    const welliesChip = wellies ? [{ label: '', value: wellies }] : [];
+    const secondary = shoeNights.includes(today) || goals.length === 0 ? welliesChip : goals;
     return {
       emoji: '🎁',
       headline,
@@ -126,7 +149,7 @@ export const sinterklaas: Season = {
       }));
     }
     if ((d?.shoe_nights ?? []).includes(today)) {
-      items.push(ritual('shoe', today, { emoji: '👟', title: t('putShoeOut'), start: '19:30' }));
+      items.push(ritual('shoe', today, { emoji: '🥾', title: t('putShoeOut'), start: '19:30' }));
     }
     return items;
   },

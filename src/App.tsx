@@ -7,6 +7,9 @@ import { useParentAuth } from './hooks/useParentAuth';
 import { BoardRefreshContext, useBoardRefreshSource } from './hooks/useBoardRefresh';
 import { SeasonContext, useSeasonSource } from './hooks/useSeason';
 import { useSeasonCrossing } from './hooks/useSeasonCrossing';
+import { useSeasonDatesWriter } from './hooks/useSeasonDatesWriter';
+import { useBirthdayBonuses } from './hooks/useBirthdayBonuses';
+import { isSeasonBonusId } from './seasons/birthdays';
 import { applySeasonPalette } from './seasons/palette';
 import { EditFamilyMembers } from './components/EditFamilyMembers';
 import { SettingsModal } from './components/SettingsModal';
@@ -51,7 +54,9 @@ function App() {
   const [currentTab, setCurrentTab] = useState<TabView>('board');
   const boardRefresh = useBoardRefreshSource();
   const season = useSeasonSource(settings, familyMembers, boardRefresh.today);
-  const seasonCrossing = useSeasonCrossing(settings, updateSettings, season, boardRefresh.today);
+  const writeSeasonDates = useSeasonDatesWriter(settings, updateSettings);
+  const seasonCrossing = useSeasonCrossing(settings, writeSeasonDates, season, boardRefresh.today);
+  const birthdayBonuses = useBirthdayBonuses(settings, writeSeasonDates, season, boardRefresh.today);
   const [refreshSpinning, setRefreshSpinning] = useState(false);
 
   // Chores load on mount; every later tick (timer, wake, midnight, button) reloads them quietly
@@ -79,7 +84,10 @@ function App() {
   const handleCompleteChore = async (choreId: string, points: number, assignedTo: string) => {
     // During Sinterklaas or Christmas the points also count towards the child's season goal
     const seasonGoal = season.goalSeason ? { seasonKey: season.goalSeason, year: season.year } : undefined;
-    return await completeChore(choreId, points, assignedTo, seasonGoal);
+    const success = await completeChore(choreId, points, assignedTo, seasonGoal);
+    // A birthday gift chore isn't in the chores table; record it so it shows as done
+    if (success && isSeasonBonusId(choreId)) await birthdayBonuses.markDone(choreId);
+    return success;
   };
 
   useEffect(() => {

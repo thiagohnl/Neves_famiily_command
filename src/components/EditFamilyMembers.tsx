@@ -18,9 +18,10 @@ interface MemberForm {
   is_parent: boolean;
   gender: string;
   birth_date: string;
+  show_age: boolean;
 }
 
-const emptyForm: MemberForm = { name: '', avatar: '👤', is_parent: false, gender: '', birth_date: '' };
+const emptyForm: MemberForm = { name: '', avatar: '👤', is_parent: false, gender: '', birth_date: '', show_age: true };
 
 const memberToForm = (m: FamilyMember): MemberForm => ({
   name: m.name,
@@ -28,6 +29,7 @@ const memberToForm = (m: FamilyMember): MemberForm => ({
   is_parent: !!m.is_parent,
   gender: m.gender || '',
   birth_date: m.birth_date || '',
+  show_age: m.show_age !== false,
 });
 
 const formToPayload = (f: MemberForm) => ({
@@ -36,6 +38,7 @@ const formToPayload = (f: MemberForm) => ({
   is_parent: f.is_parent,
   gender: f.gender || null,
   birth_date: f.birth_date || null,
+  show_age: f.show_age,
 });
 
 const ageFromBirthDate = (birthDate?: string | null): number | null => {
@@ -121,6 +124,26 @@ const MemberFields: React.FC<{
         onChange={(e) => setForm({ ...form, birth_date: e.target.value })}
         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
       />
+    </div>
+
+    <div className="sm:col-span-2">
+      <label className="block text-sm font-medium text-gray-700 mb-2">Birthday on the board</label>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={form.show_age}
+        onClick={() => setForm({ ...form, show_age: !form.show_age })}
+        className="min-h-[44px] flex items-center gap-3 text-left"
+      >
+        <span className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${form.show_age ? 'bg-green-500' : 'bg-gray-300'}`}>
+          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${form.show_age ? 'translate-x-6' : 'translate-x-1'}`} />
+        </span>
+        <span className="text-sm text-gray-700">
+          {form.show_age
+            ? `Show the age ("🎂 ${form.name.trim() || 'Isabel'} is 4 today!")`
+            : `Just "🎂 Happy birthday ${form.name.trim() || 'Isabel'}!", no age`}
+        </span>
+      </button>
     </div>
   </div>
 );
@@ -412,6 +435,7 @@ export const EditFamilyMembers: React.FC<EditFamilyMembersProps> = ({ onBack }) 
                             <p className="text-sm text-gray-500">
                               🎂 {dayjs(member.birth_date).format('D MMM YYYY')}
                               {age !== null && ` · ${age} years old`}
+                              {member.show_age === false && ' · age hidden on the board'}
                             </p>
                           )}
                         </div>

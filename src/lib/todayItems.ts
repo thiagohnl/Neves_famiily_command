@@ -228,6 +228,8 @@ export interface TodaySources {
   funIdeas: FunIdea[];
   dinner: PlannedDinner | null;
   rituals: TodayItem[];
+  /** Members whose own chores are hidden today (children on their birthday). */
+  choresOffFor?: string[];
 }
 
 const DINNER_IN_TITLE = /dinner|jantar|avondeten/i;
@@ -250,7 +252,7 @@ export const buildTodayItems = (src: TodaySources, nowMinutes: number): TodayIte
   const dinnerOnCalendar = calendar.some(item => DINNER_IN_TITLE.test(item.title));
   return finalizeTodayItems(
     [
-      ...choreItems(src.chores, src.members, src.today),
+      ...choreItems(src.chores, src.members, src.today).filter(item => !item.memberIds.some(id => src.choresOffFor?.includes(id))),
       ...calendar,
       ...activityItems(src.activities, src.plannedActivities, src.today),
       ...funItems(src.funIdeas, src.today),
@@ -260,3 +262,14 @@ export const buildTodayItems = (src: TodaySources, nowMinutes: number): TodayIte
     nowMinutes
   );
 };
+
+/** Call pills to pulse now: items with `pulseContact` that are in progress (end exclusive). */
+export const pulsingContacts = (items: TodayItem[], nowMinutes: number): string[] =>
+  items
+    .filter(item => item.pulseContact && !item.allDay)
+    .filter(item => {
+      const start = toMinutes(item.start);
+      const end = item.end ? toMinutes(item.end) : start + DEFAULT_DURATION_MIN;
+      return start <= nowMinutes && nowMinutes < end;
+    })
+    .map(item => item.pulseContact!);

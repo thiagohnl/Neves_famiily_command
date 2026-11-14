@@ -38,6 +38,7 @@ Stores family member profiles.
 | `is_parent` | boolean | No | `false` | Whether member is a parent |
 | `gender` | text | Yes | `null` | Optional gender |
 | `birth_date` | date | Yes | `null` | Date of birth; drives the birthday season |
+| `show_age` | boolean | No | `true` | On the birthday hero, "🎂 Isabel is 4 today!" (true) or "🎂 Happy birthday Isabel!" (false). Migration `20261115120000_add_member_show_age.sql`; switch in Edit Family Members. |
 | `created_at` | timestamptz | No | `now()` | Creation timestamp |
 
 **Used by:** `useChores` (fetched alongside chores), `EditFamilyMembers`, all tab components via props.
@@ -53,6 +54,7 @@ interface FamilyMember {
   is_parent: boolean;
   gender?: string | null;
   birth_date?: string | null;
+  show_age?: boolean;        // missing means true
   created_at?: string;
 }
 ```
@@ -136,7 +138,8 @@ Stores application configuration. Single-row table with `id = 'default'`.
       "shoe_nights": ["2026-11-16", "2026-11-23", "2026-11-30"],
       "crossed_days": ["2026-11-15", "2026-11-16"]
     },
-    "christmas": { "crossed_days": ["2026-12-01"] }
+    "christmas": { "crossed_days": ["2026-12-01"] },
+    "birthdays": { "done": ["bonus:birthday:<isabel>:<charlie>:2026-11-26", "goal:<isabel>:2026-11-26"] }
   }
 }
 ```
@@ -149,6 +152,7 @@ Stores application configuration. Single-row table with `id = 'default'`.
 - **Stored values win** over computed ones; empty strings count as unset. Merged by `datesForYear` in `src/seasons/store.ts`.
 - **Editing:** dates and shoe nights in Settings → Seasons.
 - **`crossed_days`:** days crossed off on the Board's season calendar. Written by tapping today's cell, and automatically for past days after midnight.
+- **`birthdays.done`:** birthday gift chores completed (`bonus:birthday:<member>:<child>:<date>`, generated chores that are not rows in `chores`) and goal bonuses given (`goal:<member>:<date>`), so each happens once.
 - **Old shape:** the app still reads the old flat shape (`{"sinterklaas": {...}}`) as that Pakjesavond's year (else 2026), in case the migration hasn't run.
 - **Christmas** (6–26 Dec) needs no dates. Birthdays come from `family_members.birth_date`.
 
@@ -174,6 +178,7 @@ interface ChristmasDates {
 interface SeasonDates {
   sinterklaas?: SinterklaasDates;   // also has crossed_days?: string[]
   christmas?: ChristmasDates;
+  birthdays?: { done?: string[] };
 }
 
 type SeasonDatesByYear = Record<string, SeasonDates>; // "2026" -> SeasonDates

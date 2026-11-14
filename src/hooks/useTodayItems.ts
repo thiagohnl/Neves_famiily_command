@@ -26,7 +26,7 @@ export function useTodayItems(chores: Chore[], familyMembers: FamilyMember[]) {
   const { activities, plannedActivities } = useActivities();
   const { ideas } = useFunIdeas();
   const { dinner } = useTodayMeal();
-  const { rituals } = useSeason();
+  const { rituals, choresOffFor } = useSeason();
   const nowMinutes = minutesOfDay(now);
 
   const items: TodayItem[] = useMemo(
@@ -41,8 +41,9 @@ export function useTodayItems(chores: Chore[], familyMembers: FamilyMember[]) {
       funIdeas: ideas,
       dinner,
       rituals,
+      choresOffFor,
     }, nowMinutes),
-    [today, chores, familyMembers, todaysEvents, googleEvents, activities, plannedActivities, ideas, dinner, rituals, nowMinutes]
+    [today, chores, familyMembers, todaysEvents, googleEvents, activities, plannedActivities, ideas, dinner, rituals, choresOffFor, nowMinutes]
   );
 
   return { items, dinner, nowMinutes };

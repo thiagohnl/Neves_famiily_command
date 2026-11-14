@@ -1,4 +1,4 @@
-import { canCrossDay, leadingBlanks, missingCrossedDays, nextSpecialLine, seasonCalendar } from '../../seasons/calendar';
+import { canCrossDay, missingCrossedDays, nextSpecialLine, seasonCalendar } from '../../seasons/calendar';
 import { datesForYear } from '../../seasons/store';
 import { translatorFor } from '../../seasons/i18n';
 
@@ -18,26 +18,46 @@ describe('seasonCalendar: Sinterklaas', () => {
     expect(days[20]).toBe('2026-12-05');
   });
 
-  it('marks the arrival 🚢, Pakjesavond 🎁 and every other day 📺', () => {
+  it('runs in date order with no blanks: 🚢 is cell 1 and 🎁 is cell 21', () => {
     const { days } = sinterklaas2026();
-    expect(days['2026-11-15']).toMatchObject({ emoji: '🚢', kind: 'arrival' });
-    expect(days['2026-12-05']).toMatchObject({ emoji: '🎁', kind: 'final', gold: true });
-    expect(days['2026-11-20']).toMatchObject({ emoji: '📺', kind: 'journaal' });
+    const cells = Object.keys(days).sort().map(day => days[day].emoji);
+    expect(cells).toHaveLength(21);
+    expect(cells[0]).toBe('🚢');
+    expect(cells[20]).toBe('🎁');
+  });
+
+  it('marks weekends 🍪 and weekdays 📺', () => {
+    const { days } = sinterklaas2026();
+    expect(days['2026-11-20']).toMatchObject({ emoji: '📺', kind: 'journaal' }); // Friday
+    expect(days['2026-11-21']).toMatchObject({ emoji: '🍪', kind: 'weekend' }); // Saturday
+    expect(days['2026-11-22']).toMatchObject({ emoji: '🍪', kind: 'weekend' }); // Sunday
+    expect(days['2026-12-05']).toMatchObject({ emoji: '🎁', kind: 'final', gold: true }); // a Saturday, but Pakjesavond
     expect(days['2026-11-20'].gold).toBeUndefined();
   });
 
-  it('shows shoe nights 👟 with a gold background, only where set', () => {
-    const { days } = sinterklaas2026(['2026-11-09', '2026-11-21', '2026-11-28']);
-    expect(days['2026-11-21']).toMatchObject({ emoji: '👟', kind: 'shoe', gold: true });
-    expect(days['2026-11-28']).toMatchObject({ emoji: '👟', gold: true });
+  it('shows shoe nights 🥾 with a gold background, only where set', () => {
+    const { days } = sinterklaas2026(['2026-11-09', '2026-11-21', '2026-11-26']);
+    expect(days['2026-11-21']).toMatchObject({ emoji: '🥾', kind: 'shoe', gold: true });
+    expect(days['2026-11-26']).toMatchObject({ emoji: '🥾', gold: true });
     expect(days['2026-11-09']).toBeUndefined(); // before the grid starts
-    expect(Object.values(days).filter(d => d.emoji === '👟')).toHaveLength(2);
+    expect(Object.values(days).filter(d => d.emoji === '🥾')).toHaveLength(2);
   });
 
-  it('starts on a Sunday, so six blank cells come first in a Monday-first grid', () => {
-    expect(leadingBlanks('2026-11-15')).toBe(6);
-    expect(leadingBlanks('2026-12-01')).toBe(1); // a Tuesday
-    expect(leadingBlanks('2026-11-16')).toBe(0); // a Monday
+  it('picks one emoji per day: birthday > Pakjesavond > shoe night > intocht > weekend > weekday', () => {
+    const at = (shoe: string[], birthdays: { date: string; name: string }[] = []) =>
+      seasonCalendar('sinterklaas', datesForYear({ '2026': { sinterklaas: { shoe_nights: shoe } } }, 2026), 2026, en, [], birthdays)!.days;
+    // birthday beats everything, and keeps a shoe night's gold
+    expect(at(['2026-11-26'], [{ date: '2026-11-26', name: 'Isabel' }])['2026-11-26']).toMatchObject({ emoji: '🎂', gold: true });
+    expect(at([], [{ date: '2026-12-05', name: 'Isabel' }])['2026-12-05'].emoji).toBe('🎂');
+    // Pakjesavond beats a shoe night
+    expect(at(['2026-12-05'])['2026-12-05'].emoji).toBe('🎁');
+    // a shoe night beats the intocht
+    expect(at(['2026-11-15'])['2026-11-15'].emoji).toBe('🥾');
+    // the intocht (a Sunday) beats the weekend
+    expect(at([])['2026-11-15'].emoji).toBe('🚢');
+    // the weekend beats a weekday's journaal
+    expect(at([])['2026-11-28'].emoji).toBe('🍪');
+    expect(at([])['2026-11-27'].emoji).toBe('📺');
   });
 
   it('needs a valid range', () => {
@@ -80,10 +100,12 @@ describe('crossing days off', () => {
 describe('nextSpecialLine', () => {
   it('speaks in sleeps, in the season language', () => {
     const spec = sinterklaas2026(['2026-11-21']);
-    expect(nextSpecialLine(spec, '2026-11-14', en)).toBe('🚢 Sinterklaas comes tomorrow!');
-    expect(nextSpecialLine(spec, '2026-11-15', en)).toBe('🚢 Sinterklaas comes today!');
-    expect(nextSpecialLine(spec, '2026-11-20', en)).toBe('👟 Shoe night: tomorrow');
-    expect(nextSpecialLine(spec, '2026-11-21', en)).toBe('👟 Shoe night: tonight!');
+    expect(nextSpecialLine(spec, '2026-11-12', en)).toBe('🚢 3 sleeps until he visits our town');
+    expect(nextSpecialLine(spec, '2026-11-14', en)).toBe('🚢 Tomorrow he sails into Haarlem');
+    expect(nextSpecialLine(spec, '2026-11-15', en)).toBe('🚢 Sinterklaas comes to Haarlem today!');
+    expect(nextSpecialLine(spec, '2026-11-20', en)).toBe('🥾 Next wellies: Saturday');
+    expect(nextSpecialLine(spec, '2026-11-21', en)).toBe('🥾 Wellies tonight!');
+    expect(nextSpecialLine(spec, '2026-11-20', translatorFor('nl'))).toBe('🥾 Volgende schoen: zaterdag');
     expect(nextSpecialLine(spec, '2026-12-01', en)).toBe('🎁 4 more sleeps');
     expect(nextSpecialLine(spec, '2026-12-04', en)).toBe('🎁 1 more sleep');
     expect(nextSpecialLine(spec, '2026-12-01', translatorFor('nl'))).toBe('🎁 Nog 4 nachtjes');

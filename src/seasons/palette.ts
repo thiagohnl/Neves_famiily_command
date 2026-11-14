@@ -1,6 +1,6 @@
 import { SeasonPalette } from './types';
 
-const VARS: Record<keyof SeasonPalette, string> = {
+const VARS: Record<Exclude<keyof SeasonPalette, 'pattern'>, string> = {
   bg: '--season-bg',
   surface: '--season-surface',
   accent: '--season-accent',
@@ -15,9 +15,10 @@ const VARS: Record<keyof SeasonPalette, string> = {
  * the page only while a season runs.
  */
 export const applySeasonPalette = (root: HTMLElement, palette: SeasonPalette | null) => {
-  (Object.keys(VARS) as (keyof SeasonPalette)[]).forEach(key => {
+  (Object.keys(VARS) as (keyof typeof VARS)[]).forEach(key => {
     if (palette) root.style.setProperty(VARS[key], palette[key]);
     else root.style.removeProperty(VARS[key]);
   });
   root.classList.toggle('season-active', !!palette);
+  root.classList.toggle('season-confetti', palette?.pattern === 'confetti');
 };

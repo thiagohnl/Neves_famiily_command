@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Chore, FamilyMember, GoalSeasonKey } from '../types';
 import { incrementSeasonGoal } from '../lib/seasonGoalsApi';
+import { isSeasonBonusId } from '../seasons/birthdays';
 
 /** The season whose points goal a completion also counts towards. */
 export interface SeasonGoalRef {
@@ -62,11 +63,15 @@ export const useChores = () => {
 
   const completeChore = async (choreId: string, points: number, assignedTo: string, seasonGoal?: SeasonGoalRef) => {
     try {
-      const { error: choreError } = await supabase
-        .from('chores')
-        .update({ is_completed: true, completed_at: new Date().toISOString() })
-        .eq('id', choreId);
-      if (choreError) throw choreError;
+      // season_bonus path: generated chores (birthday gifts) aren't rows in the chores
+      // table; only the points move. App records the completion in app_settings.
+      if (!isSeasonBonusId(choreId)) {
+        const { error: choreError } = await supabase
+          .from('chores')
+          .update({ is_completed: true, completed_at: new Date().toISOString() })
+          .eq('id', choreId);
+        if (choreError) throw choreError;
+      }
 
       const { error: rpcError } = await supabase.rpc('increment_points', {
         member_id: assignedTo,

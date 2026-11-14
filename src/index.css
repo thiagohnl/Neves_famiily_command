@@ -27,6 +27,19 @@ html.season-active:not(.dark) body {
   background-color: var(--season-bg);
 }
 
+/* Birthday: a static scatter of confetti dots on the cream background (no animation) */
+html.season-confetti:not(.dark) body {
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(236, 72, 153, 0.35) 0 4px, transparent 5px),
+    radial-gradient(circle at 63% 9%, rgba(59, 130, 246, 0.35) 0 3px, transparent 4px),
+    radial-gradient(circle at 86% 47%, rgba(16, 185, 129, 0.35) 0 4px, transparent 5px),
+    radial-gradient(circle at 34% 58%, rgba(245, 158, 11, 0.4) 0 3px, transparent 4px),
+    radial-gradient(circle at 8% 82%, rgba(139, 92, 246, 0.35) 0 3px, transparent 4px),
+    radial-gradient(circle at 55% 88%, rgba(239, 68, 68, 0.3) 0 4px, transparent 5px);
+  background-size: 160px 160px;
+  background-attachment: fixed;
+}
+
 /* Kids Theme Styles */
 .kids-theme {
   --primary-color: #D93636;

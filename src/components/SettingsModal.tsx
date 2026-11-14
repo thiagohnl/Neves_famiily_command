@@ -428,7 +428,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
 
                     <div>
-                      <label htmlFor="sk-shoe-night" className="block text-xs text-gray-500 mb-1">👟 Shoe nights</label>
+                      <label htmlFor="sk-shoe-night" className="block text-xs text-gray-500 mb-1">🥾 Wellies nights</label>
                       <div className="flex flex-wrap gap-2 mb-2">
                         {(seasonForm.sinterklaas.shoe_nights ?? []).map(night => (
                           <button

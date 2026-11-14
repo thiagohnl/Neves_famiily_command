@@ -46,8 +46,10 @@ const Hand: React.FC<{
   angle: number;
   length: number;
   avatarR: number;
+  /** Birthday: a crown sits on the face. */
+  crowned?: boolean;
   onSelect: () => void;
-}> = ({ member, color, angle, length, avatarR, onSelect }) => {
+}> = ({ member, color, angle, length, avatarR, crowned, onSelect }) => {
   const rotate = useShortestAngle(angle);
   const spring = { type: 'spring' as const, stiffness: 70, damping: 14 };
   const clipId = `clock-avatar-${member.id}`;
@@ -86,6 +88,9 @@ const Hand: React.FC<{
               <text textAnchor="middle" dominantBaseline="central" fontSize={avatarR * 1.1}>{member.avatar}</text>
             </>
           )}
+          {crowned && (
+            <text y={-avatarR - 2} textAnchor="middle" fontSize={Math.max(20, avatarR * 1.05)} aria-hidden="true">👑</text>
+          )}
         </motion.g>
       </g>
     </motion.g>
@@ -96,11 +101,13 @@ interface WhereaboutsClockProps {
   familyMembers: FamilyMember[];
   whereabouts: Record<string, MemberWhereabouts>;
   clockEmoji?: Partial<Record<Whereabout, string>>;
+  /** Members with a birthday today wear a crown. */
+  crownMemberIds?: string[];
   onSelectMember: (memberId: string) => void;
 }
 
 /** Weasley-style clock: one hand per member pointing at where they are. */
-export const WhereaboutsClock: React.FC<WhereaboutsClockProps> = ({ familyMembers, whereabouts, clockEmoji, onSelectMember }) => {
+export const WhereaboutsClock: React.FC<WhereaboutsClockProps> = ({ familyMembers, whereabouts, clockEmoji, crownMemberIds = [], onSelectMember }) => {
   const slots = handSlots(
     familyMembers.map(m => ({ memberId: m.id, status: whereabouts[m.id]?.status ?? 'home' }))
   );
@@ -135,6 +142,7 @@ export const WhereaboutsClock: React.FC<WhereaboutsClockProps> = ({ familyMember
               angle={statusAngle(slot.status) + slot.offsetDeg}
               length={slot.length}
               avatarR={slot.avatarR}
+              crowned={crownMemberIds.includes(member.id)}
               onSelect={() => onSelectMember(member.id)}
             />
           );

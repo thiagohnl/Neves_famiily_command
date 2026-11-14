@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CalendarDay, leadingBlanks } from '../../seasons/calendar';
+import { CalendarDay } from '../../seasons/calendar';
 
 interface SeasonCalendarProps {
   start: string;
@@ -9,7 +9,7 @@ interface SeasonCalendarProps {
   today: string;
   /** Days crossed off by tapping (or automatically at midnight). */
   crossed: string[];
-  /** "👟 Shoe night: tomorrow" etc., in the season language. */
+  /** "🥾 Next wellies: Friday" etc., in the season language. */
   nextLine: string | null;
   /** Tapping today's cell toggles it. */
   onToggleToday: (crossed: boolean) => void;
@@ -21,20 +21,17 @@ const CROSS = '✖︎';
 const GOLD_BG = 'rgba(212, 160, 23, 0.18)';
 
 /**
- * Run-up calendar under the clock: Monday-to-Sunday columns of emoji cells, no
- * dates. Past days are faded and crossed; today has a pulsing accent ring and
+ * Run-up calendar under the clock: emoji cells from the season's first day in
+ * order, 7 per row, no weekday alignment and no dates. Past days are faded and crossed; today has a pulsing accent ring and
  * can be tapped to cross it off.
  */
-export const SeasonCalendar: React.FC<SeasonCalendarProps> = ({ start, days, today, crossed, nextLine, onToggleToday }) => {
+export const SeasonCalendar: React.FC<SeasonCalendarProps> = ({ days, today, crossed, nextLine, onToggleToday }) => {
   const crossedSet = new Set(crossed);
   const dayKeys = Object.keys(days).sort();
 
   return (
     <div className="flex flex-col items-center gap-1" aria-label="Season calendar">
       <ol className="grid grid-cols-7 gap-0.5">
-        {Array.from({ length: leadingBlanks(start) }, (_, i) => (
-          <li key={`blank-${i}`} className="w-11 h-11" aria-hidden="true" />
-        ))}
         {dayKeys.map(day => {
           const info = days[day];
           const isToday = day === today;

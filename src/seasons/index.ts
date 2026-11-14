@@ -3,7 +3,7 @@ import { TodayItem } from '../types/today';
 import { EMPTY_HERO_CONTEXT, HeroContext, HeroSpec, Season, SeasonPalette } from './types';
 import { sinterklaas } from './sinterklaas';
 import { christmas } from './christmas';
-import { birthdaySeason } from './birthdays';
+import { birthdayDay, birthdayRunUpChip, birthdaySeason } from './birthdays';
 import { Translate, translatorFor } from './i18n';
 import { datesForYear } from './store';
 
@@ -47,8 +47,8 @@ export const getGoalSeason = (
 };
 
 /**
- * Manual override if set ('none' forces no season), else the first season active
- * today: a birthday first since it lasts one day, then Sinterklaas, then Christmas.
+ * 'none' forces no season. Otherwise a family birthday wins for that day, even over
+ * a forced season; then the forced season, else Sinterklaas, then Christmas by date.
  * Sinterklaas dates are computed for the year unless a parent set them.
  */
 export const getActiveSeason = (
@@ -58,8 +58,6 @@ export const getActiveSeason = (
 ): Season | null => {
   const override = settings.active_season;
   if (override === 'none') return null;
-  const forced = SEASONS.find(s => s.key === override);
-  if (forced) return forced;
   return birthdaySeason(members, today) ?? getGoalSeason(settings, today);
 };
 
@@ -76,6 +74,10 @@ export interface SeasonState {
   /** Sinterklaas or Christmas when one runs (also on a birthday): calendar and goals. */
   goalSeason: GoalSeasonKey | null;
   translate: Translate;
+  /** Members celebrating a birthday today. */
+  birthdayIds: string[];
+  /** Children on their birthday: their own chores are hidden behind a day-off row. */
+  choresOffFor: string[];
 }
 
 export const NO_SEASON: SeasonState = {
@@ -88,6 +90,8 @@ export const NO_SEASON: SeasonState = {
   year: new Date().getFullYear(),
   goalSeason: null,
   translate: translatorFor('en'),
+  birthdayIds: [],
+  choresOffFor: [],
 };
 
 export const resolveSeasonState = (
@@ -101,19 +105,31 @@ export const resolveSeasonState = (
   const underlying = getGoalSeason(settings, today);
   const goalSeason = (underlying?.key ?? null) as GoalSeasonKey | null;
   const season = getActiveSeason(settings, today, members);
-  if (!season) return { ...NO_SEASON, dates, year, goalSeason, translate };
+  if (settings.active_season === 'none') return { ...NO_SEASON, dates, year, goalSeason, translate };
+
+  // Birthday rows come on top of whatever season runs (the eve reminder needs no season at all)
+  const birthday = birthdayDay(members, today, translate, dates.birthdays?.done);
+  const birthdayState = { birthdayIds: birthday.celebrantIds, choresOffFor: birthday.choresOffFor };
+  if (!season) return { ...NO_SEASON, dates, year, goalSeason, translate, rituals: birthday.items, ...birthdayState };
+
   // A birthday takes the hero and colours, but the journaal still airs that day
   const ritualSeasons = underlying && underlying !== season ? [season, underlying] : [season];
-  const heroFor = (ctx: HeroContext) => season.hero?.(today, dates, translate, ctx) ?? null;
+  // In the week before a birthday the running season's hero gains a countdown chip
+  const runUpChip = season.key === 'birthday' ? null : birthdayRunUpChip(members, today, translate);
+  const heroFor = (ctx: HeroContext) => {
+    const hero = season.hero?.(today, dates, translate, ctx) ?? null;
+    return hero && runUpChip ? { ...hero, chips: [...hero.chips, runUpChip] } : hero;
+  };
   return {
     season,
     hero: heroFor(EMPTY_HERO_CONTEXT),
     heroFor,
-    rituals: ritualSeasons.flatMap(s => s.rituals(today, dates, translate)),
+    rituals: [...ritualSeasons.flatMap(s => s.rituals(today, dates, translate)), ...birthday.items],
     palette: season.palette,
     dates,
     year,
     goalSeason,
     translate,
+    ...birthdayState,
   };
 };

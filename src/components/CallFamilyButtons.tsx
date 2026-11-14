@@ -1,6 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Phone } from 'lucide-react';
+import { useSeason } from '../hooks/useSeason';
+import { minutesOfDay, useNow } from '../hooks/useNow';
+import { pulsingContacts } from '../lib/todayItems';
 
 // ─── EDIT HERE: family contacts ──────────────────────────────────────────────
 // name:     label the kids see (keep it short)
@@ -27,6 +30,9 @@ const isImage = (photo: string) => photo.startsWith('/') || photo.startsWith('ht
 const whatsappHref = (phone: string) =>
   `intent://send?phone=${phone}#Intent;scheme=whatsapp;package=com.whatsapp;S.browser_fallback_url=${encodeURIComponent(`https://wa.me/${phone}`)};end`;
 export const CallFamilyButtons: React.FC = () => {
+  // A season ritual can ask for a call (the birthday call to Vovó at 17:30): that pill pulses while it's on
+  const { rituals } = useSeason();
+  const pulsing = pulsingContacts(rituals, minutesOfDay(useNow()));
   return (
     <div className="ml-auto flex items-center gap-1.5 pl-2 shrink-0">
       {CONTACTS.map(contact => (
@@ -34,7 +40,12 @@ export const CallFamilyButtons: React.FC = () => {
           key={contact.name}
           href={whatsappHref(contact.whatsapp)}
           whileTap={{ scale: 0.9 }}
-          className="shrink-0 flex items-center gap-1.5 bg-green-500 text-white rounded-full pl-1.5 pr-3 py-1 text-sm font-bold"
+          animate={pulsing.includes(contact.name) ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+          transition={pulsing.includes(contact.name) ? { duration: 1, repeat: Infinity, repeatDelay: 0.6 } : undefined}
+          className={`shrink-0 flex items-center gap-1.5 bg-green-500 text-white rounded-full pl-1.5 pr-3 py-1 text-sm font-bold ${
+            pulsing.includes(contact.name) ? 'ring-4 ring-season-accent' : ''
+          }`}
+          aria-label={pulsing.includes(contact.name) ? `Call ${contact.name} now` : undefined}
         >
           {contact.photo && isImage(contact.photo) ? (
             <img src={contact.photo} alt="" className="w-6 h-6 rounded-full object-cover" />

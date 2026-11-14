@@ -10,13 +10,20 @@ export interface SeasonPalette {
   accentText: string;
   button: string;
   gold: string;
+  /** Static background decoration while the season runs (birthday confetti dots). */
+  pattern?: 'confetti';
 }
 
 export interface HeroSpec {
   emoji: string;
   headline: string;
   subline: string;
+  /** A chip with an empty label shows only its value (e.g. the birthday countdown). */
   chips: { label: string; value: string }[];
+  /** Headline split around one part shown very large (the age on a birthday). */
+  headlineBig?: { before: string; big: string; after: string };
+  /** Large photo in place of the emoji (the birthday member). */
+  photo?: { memberId: string; url?: string; avatar: string; color: string; name: string };
 }
 
 /** What the board knows beyond the dates: today's calendar and the children's points goals. */

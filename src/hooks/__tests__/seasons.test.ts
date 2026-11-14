@@ -60,8 +60,8 @@ describe('t', () => {
   });
 
   it('falls back to English for an unknown language', () => {
-    expect(t('putShoeOut', 'fr')).toBe('Put your shoe out');
-    expect(t('putShoeOut', undefined)).toBe('Put your shoe out');
+    expect(t('putShoeOut', 'fr')).toBe('Put your wellies out');
+    expect(t('putShoeOut', undefined)).toBe('Put your wellies out');
   });
 
   it('falls back to English for a key a language does not define', () => {
@@ -122,7 +122,7 @@ describe('Sinterklaas hero and rituals', () => {
   it('switches to counting sleeps to Pakjesavond after the arrival', () => {
     const state = resolveSeasonState({ ...auto, language: 'en' }, '2026-11-16', []);
     expect(state.hero?.headline).toBe('19 more sleeps until Pakjesavond!');
-    expect(resolveSeasonState(auto, '2026-11-14', []).hero?.headline).toBe('Sinterklaas arrives today!');
+    expect(resolveSeasonState(auto, '2026-11-14', []).hero?.headline).toBe('🚢 Sinterklaas is in the Netherlands!');
     expect(resolveSeasonState(auto, '2026-12-05', []).hero?.headline).toBe("It's Pakjesavond tonight!");
   });
 
@@ -130,18 +130,19 @@ describe('Sinterklaas hero and rituals', () => {
     const state = resolveSeasonState({ ...auto, language: 'en' }, '2026-11-09', []);
     expect(state.rituals.map(r => [r.start, r.emoji, r.title])).toEqual([
       ['18:00', '📺', 'Sinterklaasjournaal'],
-      ['19:30', '👟', 'Put your shoe out'],
+      ['19:30', '🥾', 'Put your wellies out'],
     ]);
     expect(state.rituals.every(r => r.kind === 'ritual' && r.memberIds.length === 0)).toBe(true);
     expect(state.rituals[0]).toMatchObject({ end: '18:10', subtitle: 'NPO 3, episode 1 of 27' });
-    expect(state.hero?.chips).toContainEqual({ label: 'Shoe tonight?', value: 'Yes' });
+    expect(state.hero?.chips).toContainEqual({ label: '', value: '🥾 Wellies tonight!' });
     expect(state.hero?.chips).toContainEqual({ label: 'Pakjesavond', value: '26 sleeps' });
   });
 
   it('has only the journaal on a night without a shoe', () => {
     const state = resolveSeasonState(auto, '2026-11-10', []);
     expect(state.rituals.map(r => r.title)).toEqual(['Sinterklaasjournaal']);
-    expect(state.hero?.chips).toContainEqual({ label: 'Shoe tonight?', value: 'No' });
+    // Next shoe night after 10 Nov is Monday 16 Nov
+    expect(state.hero?.chips).toContainEqual({ label: '', value: '🥾 Next wellies: Monday' });
   });
 });
 
@@ -154,8 +155,8 @@ describe('Christmas and birthdays', () => {
 
   it('greets the birthday member with their age and colour', () => {
     const state = resolveSeasonState(auto, '2026-11-20', MEMBERS);
-    expect(state.hero?.headline).toBe('Happy birthday Charlie!');
-    expect(state.hero?.subline).toBe('Charlie is 7 today');
+    expect(state.hero?.headline).toBe('🎂 Charlie is 7 today!');
+    expect(state.hero?.headlineBig?.big).toBe('7');
     expect(state.palette?.accent).toBe('#10B981'); // third member's colour
   });
 
@@ -279,12 +280,29 @@ describe('Intocht day and season goals in the hero', () => {
   it('on our own intocht names Haarlem and takes the time from the calendar', () => {
     const state = resolveSeasonState({ ...auto, language: 'en' }, '2026-11-15', []);
     const withEntry = state.heroFor({ calendar: [{ title: 'Intocht Haarlem', start: '12:30' }], goals: [] });
-    expect(withEntry?.headline).toBe('🚢 Today Sinterklaas sails into Haarlem!');
-    expect(withEntry?.subline).toBe('Intocht at 12:30');
-    expect(state.heroFor({ calendar: [], goals: [] })?.subline).toBe('Intocht around 13:00');
+    expect(withEntry?.headline).toBe('🚢 Sinterklaas comes to Haarlem today!');
+    expect(withEntry?.subline).toBe('At 12:30');
+    expect(state.heroFor({ calendar: [], goals: [] })?.subline).toBe('Around 13:00');
   });
 
-  it('replaces "Shoe tonight? No" with one chip per child, but the shoe chip wins on shoe nights', () => {
+  it('reads right on 14, 15 and 16 November 2026', () => {
+    const hero = (day: string, lang: 'en' | 'nl' | 'pt' = 'en') =>
+      resolveSeasonState({ active_season: null, season_dates: {}, language: lang }, day, []).hero;
+    expect(hero('2026-11-14')).toMatchObject({ headline: '🚢 Sinterklaas is in the Netherlands!', subline: 'Tomorrow he sails into Haarlem' });
+    expect(hero('2026-11-15')).toMatchObject({ headline: '🚢 Sinterklaas comes to Haarlem today!', subline: 'Around 13:00' });
+    expect(hero('2026-11-16')).toMatchObject({ headline: '19 more sleeps until Pakjesavond!', subline: 'Sinterklaasjournaal tonight at 18:00' });
+    expect(hero('2026-11-14', 'nl')).toMatchObject({ headline: '🚢 Sinterklaas is in Nederland!', subline: 'Morgen vaart hij Haarlem binnen' });
+  });
+
+  it('hides the wellies chip when no shoe nights are left, and speaks each language', () => {
+    expect(resolveSeasonState(auto, '2026-12-01', []).hero?.chips.some(c => c.value.includes('🥾'))).toBe(false);
+    const pt = resolveSeasonState({ ...auto, language: 'pt' }, '2026-11-10', []).hero;
+    expect(pt?.chips).toContainEqual({ label: '', value: '🥾 Próxima bota: segunda-feira' });
+    const nl = resolveSeasonState({ ...auto, language: 'nl' }, '2026-11-16', []).hero;
+    expect(nl?.chips).toContainEqual({ label: '', value: '🥾 Schoen zetten vanavond!' });
+  });
+
+  it('replaces "Next wellies" with one chip per child, but the wellies chip wins on shoe nights', () => {
     const goals = [
       { name: 'Charlie', earned: 62, target: 100 },
       { name: 'Isabel', earned: 30, target: 200 },
@@ -296,7 +314,7 @@ describe('Intocht day and season goals in the hero', () => {
       { label: 'Isabel', value: '🍫 15%' },
     ]);
     const shoeNight = resolveSeasonState(auto, '2026-11-16', []).heroFor({ calendar: [], goals });
-    expect(shoeNight?.chips).toContainEqual({ label: 'Shoe tonight?', value: 'Yes' });
+    expect(shoeNight?.chips).toContainEqual({ label: '', value: '🥾 Wellies tonight!' });
     expect(shoeNight?.chips.map(c => c.label)).not.toContain('Charlie');
   });
 

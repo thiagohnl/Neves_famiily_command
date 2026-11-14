@@ -3,6 +3,7 @@ import { AppSettings } from '../types';
 import { SeasonState } from '../seasons';
 import { missingCrossedDays, seasonCalendar } from '../seasons/calendar';
 import { crossedDays, withCrossedDays } from '../seasons/store';
+import { WriteSeasonDates } from './useSeasonDatesWriter';
 
 /**
  * Crossing days off the season calendar, stored in
@@ -12,7 +13,7 @@ import { crossedDays, withCrossedDays } from '../seasons/store';
  */
 export function useSeasonCrossing(
   settings: AppSettings,
-  updateSettings: (updates: Partial<AppSettings>) => Promise<boolean>,
+  writeSeasonDates: WriteSeasonDates,
   season: SeasonState,
   today: string
 ) {
@@ -22,9 +23,9 @@ export function useSeasonCrossing(
   const crossDay = useCallback(
     (day: string, crossed = true) => {
       if (!goalSeason) return;
-      updateSettings({ season_dates: withCrossedDays(settings.season_dates, year, goalSeason, [day], crossed) });
+      writeSeasonDates(current => withCrossedDays(current, year, goalSeason, [day], crossed));
     },
-    [goalSeason, year, settings.season_dates, updateSettings]
+    [goalSeason, year, writeSeasonDates]
   );
 
   useEffect(() => {
@@ -38,9 +39,9 @@ export function useSeasonCrossing(
     const missing = missingCrossedDays(spec, crossedDays(settings.season_dates, year, goalSeason), today);
     attempted.current = key;
     if (missing.length > 0) {
-      updateSettings({ season_dates: withCrossedDays(settings.season_dates, year, goalSeason, missing) });
+      writeSeasonDates(current => withCrossedDays(current, year, goalSeason, missing));
     }
-  }, [settings.id, settings.season_dates, goalSeason, year, dates, translate, today, updateSettings]);
+  }, [settings.id, settings.season_dates, goalSeason, year, dates, translate, today, writeSeasonDates]);
 
   const crossed = goalSeason ? crossedDays(settings.season_dates, year, goalSeason) : [];
   return { crossed, crossDay };

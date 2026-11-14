@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
 import { Chore, FamilyMember } from '../../types';
@@ -16,6 +16,10 @@ import { WhereaboutsClock } from './WhereaboutsClock';
 import { WhereaboutsSheet } from './WhereaboutsSheet';
 import { TodayList } from './TodayList';
 import { SeasonCalendar } from './SeasonCalendar';
+import { BirthdayTodayCell } from './BirthdayTodayCell';
+import { birthdayIn, displayName } from '../../seasons/birthdays';
+import { isIsoDate } from '../../seasons/dates';
+import { playHurray } from '../../lib/hurray';
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
 import { useSeasonGoals } from '../../hooks/useSeasonGoals';
 import { canCrossDay, nextSpecialLine, seasonCalendar } from '../../seasons/calendar';
@@ -46,7 +50,7 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
   onCrossDay,
 }) => {
   const { today } = useBoardRefresh();
-  const { heroFor, season, goalSeason, dates, year, translate } = useSeason();
+  const { heroFor, season, goalSeason, dates, year, translate, birthdayIds } = useSeason();
   const { items, dinner, nowMinutes } = useTodayItems(chores, familyMembers);
   const { goals, bump } = useSeasonGoals(year);
   // Advent ✈️ days come from all-day Google events across 1-25 December
@@ -56,6 +60,29 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
   const [showConfetti, setShowConfetti] = useState(false);
   const [recipeMealId, setRecipeMealId] = useState<string | null>(null);
   const [whereaboutsMemberId, setWhereaboutsMemberId] = useState<string | null>(null);
+  // Birthday confetti: once, silently, at the first render of the day; then on every tap of the
+  // birthday person's face or hero photo, with a hurray (a tap is what lets the tablet play sound).
+  // The counter remounts the confetti so a tap restarts it.
+  const [birthdayConfetti, setBirthdayConfetti] = useState(0);
+  const celebrate = () => setBirthdayConfetti(n => n + 1);
+  const hurray = () => {
+    celebrate();
+    playHurray(translate.lang);
+  };
+  const birthdayKey = birthdayIds.join(',');
+  const birthdayNames = familyMembers.filter(m => birthdayIds.includes(m.id)).map(m => displayName(m, translate));
+
+  useEffect(() => {
+    if (!birthdayKey) return;
+    const flag = `birthday-confetti-${today}`;
+    try {
+      if (localStorage.getItem(flag)) return;
+      localStorage.setItem(flag, '1');
+    } catch {
+      // Storage blocked: celebrate anyway, at most once per page load
+    }
+    celebrate();
+  }, [today, birthdayKey]);
 
   // Keep the NOW line about a third of the way down the list. Also re-follow when
   // the list changes: calendar and schedule rows arrive after the first render.
@@ -64,8 +91,12 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
   const calendar = useMemo(() => {
     if (!goalSeason) return null;
     const allDay = rangeEvents.filter(e => e.allDay).map(e => ({ date: e.displayDate, title: e.title }));
-    return seasonCalendar(goalSeason, dates, year, translate, allDay);
-  }, [goalSeason, dates, year, translate, rangeEvents]);
+    // 🎂 on family birthdays that fall inside the grid
+    const birthdays = familyMembers
+      .filter(m => isIsoDate(m.birth_date))
+      .map(m => ({ date: birthdayIn(m.birth_date!, year), name: displayName(m, translate) }));
+    return seasonCalendar(goalSeason, dates, year, translate, allDay, birthdays);
+  }, [goalSeason, dates, year, translate, rangeEvents, familyMembers]);
 
   // Children's goals for this season, in family order, for the hero chips
   const heroContext: HeroContext = useMemo(() => ({
@@ -99,6 +130,15 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
     // Borrows 24 px of the page padding on md+ so the clock and a four-row calendar fit at 800 px
     <div className="font-body flex flex-col md:flex-row gap-6 md:h-[calc(100vh-8.5rem)] md:-mt-2 md:-mb-4 md:min-h-[560px]">
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
+      {birthdayConfetti > 0 && (
+        <ConfettiCelebration
+          key={birthdayConfetti}
+          show
+          silent
+          message={translate('happyBirthday', { name: birthdayNames.join(' & ') })}
+          onComplete={() => setBirthdayConfetti(0)}
+        />
+      )}
 
       {/* Left: whereabouts clock, then the season calendar */}
       <section className="hidden md:flex w-[470px] shrink-0 flex-col items-center gap-2" aria-label="Family">
@@ -106,9 +146,12 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
           familyMembers={familyMembers}
           whereabouts={whereabouts}
           clockEmoji={season?.clockEmoji}
-          onSelectMember={setWhereaboutsMemberId}
+          crownMemberIds={birthdayIds}
+          /* The birthday face throws confetti and a hurray instead of opening the sheet */
+          onSelectMember={id => (birthdayIds.includes(id) ? hurray() : setWhereaboutsMemberId(id))}
         />
-        {calendar && (
+        {calendar && birthdayIds.length > 0 && <BirthdayTodayCell label={translate('birthdayCell')} />}
+        {calendar && birthdayIds.length === 0 && (
           <SeasonCalendar
             start={calendar.start}
             end={calendar.end}
@@ -148,9 +191,9 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
           <TodayList items={items} familyMembers={familyMembers} nowMinutes={nowMinutes} onComplete={handleComplete} />
         </div>
 
-        {hero && <SeasonHero hero={hero} size="strip" />}
-        {/* When the hero is showing and the screen is short, the verse gives way first */}
-        <VerseOfTheDayCard variant="strip" className={hero ? '[@media(max-height:760px)]:hidden' : ''} />
+        {hero && <SeasonHero hero={hero} size="strip" onPhotoTap={hurray} />}
+        {/* When the hero is showing and the screen is short, the verse gives way first; the tall birthday hero always wins */}
+        <VerseOfTheDayCard variant="strip" className={hero?.photo ? 'hidden' : hero ? '[@media(max-height:760px)]:hidden' : ''} />
       </section>
 
       <RecipeViewModal mealId={recipeMealId} onClose={() => setRecipeMealId(null)} />

@@ -77,3 +77,14 @@ export const withCrossedDays = (
   days.forEach(day => (crossed ? set.add(day) : set.delete(day)));
   return withSeasonEntry(byYear, year, season, { ...current, crossed_days: [...set].sort() });
 };
+
+export const birthdayRecordsDone = (raw: unknown, year: number): string[] =>
+  normalizeSeasonDates(raw)[String(year)]?.birthdays?.done ?? [];
+
+/** Record gift chores done and goal bonuses given, so each happens once. */
+export const withBirthdayDone = (raw: unknown, year: number, ids: string[]): SeasonDatesByYear => {
+  const byYear = normalizeSeasonDates(raw);
+  const current = byYear[String(year)]?.birthdays ?? {};
+  const done = [...new Set([...(current.done ?? []), ...ids])].sort();
+  return withSeasonEntry(byYear, year, 'birthdays', { ...current, done });
+};

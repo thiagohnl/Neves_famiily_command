@@ -16,4 +16,6 @@ export interface TodayItem {
   completable?: { choreId: string; points: number; assignedTo: string };
   /** Rituals only: skipped when a calendar entry today has this in its title (case-insensitive). */
   dedupeKeyword?: string;
+  /** While this item is current, the call pill with this name pulses (e.g. 'Vovó'). */
+  pulseContact?: string;
 }

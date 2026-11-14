@@ -131,6 +131,27 @@ describe('useChores', () => {
     expect(success!).toBe(true);
   });
 
+  it('completeChore on a generated birthday chore only moves points (season_bonus path)', async () => {
+    setupLoadData();
+    mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
+    const { result } = renderHook(() => useChores());
+    await vi.waitFor(() => expect(result.current.loading).toBe(false));
+    mockSupabase.from.mockClear();
+
+    let success: boolean;
+    await act(async () => {
+      success = await result.current.completeChore('bonus:birthday:isabel:charlie:2026-11-26', 50, 'charlie', { seasonKey: 'sinterklaas', year: 2026 });
+    });
+
+    expect(success!).toBe(true);
+    // No chores row to update; the quiet refetch reads members and chores again
+    expect(mockSupabase.from.mock.results.some(r => r.value?.update?.mock?.calls?.length)).toBe(false);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('increment_points', { member_id: 'charlie', points_to_add: 50 });
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('increment_season_goal', {
+      p_member_id: 'charlie', p_season_key: 'sinterklaas', p_year: 2026, points_to_add: 50,
+    });
+  });
+
   it('completeChore returns false on error', async () => {
     setupLoadData();
 
