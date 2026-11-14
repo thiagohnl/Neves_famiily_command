@@ -33,11 +33,12 @@ describe('seasonCalendar: Sinterklaas', () => {
     expect(days['2026-11-15']).toMatchObject({ emoji: '🥾', kind: 'shoe', gold: true });
   });
 
-  it('marks weekends 🍪 and weekdays 📺', () => {
+  it('shows weekends as ordinary 📺 days', () => {
     const { days } = sinterklaas2026();
     expect(days['2026-11-20']).toMatchObject({ emoji: '📺', kind: 'journaal' }); // Friday
-    expect(days['2026-11-21']).toMatchObject({ emoji: '🍪', kind: 'weekend' }); // Saturday
-    expect(days['2026-11-22']).toMatchObject({ emoji: '🍪', kind: 'weekend' }); // Sunday
+    expect(days['2026-11-21']).toMatchObject({ emoji: '📺', kind: 'journaal' }); // Saturday
+    expect(days['2026-11-22']).toMatchObject({ emoji: '📺', kind: 'journaal' }); // Sunday
+    expect(Object.values(days).some(d => d.emoji === '🍪')).toBe(false);
     expect(days['2026-12-05']).toMatchObject({ emoji: '🎁', kind: 'final', gold: true }); // a Saturday, but Pakjesavond
     expect(days['2026-11-20'].gold).toBeUndefined();
   });
@@ -50,7 +51,7 @@ describe('seasonCalendar: Sinterklaas', () => {
     expect(Object.values(days).filter(d => d.emoji === '🥾')).toHaveLength(2);
   });
 
-  it('picks one emoji per day: birthday > Pakjesavond > shoe night > intocht > weekend > weekday', () => {
+  it('picks one emoji per day: birthday > Pakjesavond > wellies > intocht > 📺', () => {
     const at = (shoe: string[], birthdays: { date: string; name: string }[] = []) =>
       seasonCalendar('sinterklaas', datesForYear({ '2026': { sinterklaas: { shoe_nights: shoe } } }, 2026), 2026, en, [], birthdays)!.days;
     // birthday beats everything, and keeps a shoe night's gold
@@ -60,11 +61,12 @@ describe('seasonCalendar: Sinterklaas', () => {
     expect(at(['2026-12-05'])['2026-12-05'].emoji).toBe('🎁');
     // a shoe night beats the intocht
     expect(at(['2026-11-15'])['2026-11-15'].emoji).toBe('🥾');
-    // the intocht (a Sunday) beats the weekend
+    // the intocht (Saturday 14th, Sunday 15th) beats an ordinary day
+    expect(at([])['2026-11-14'].emoji).toBe('🚢');
     expect(at([])['2026-11-15'].emoji).toBe('🚢');
-    // the weekend beats a weekday's journaal
-    expect(at([])['2026-11-28'].emoji).toBe('🍪');
-    expect(at([])['2026-11-27'].emoji).toBe('📺');
+    // everything else is 📺, weekend or not
+    expect(at([])['2026-11-28'].emoji).toBe('📺'); // Saturday
+    expect(at([])['2026-11-27'].emoji).toBe('📺'); // Friday
   });
 
   it('needs a valid range', () => {

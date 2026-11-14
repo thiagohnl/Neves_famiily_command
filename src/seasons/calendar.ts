@@ -1,12 +1,12 @@
 // The season calendar under the clock: one cell per day of the run-up, each with
 // an emoji, crossed off as the days go by. Pure functions; the component renders.
 import { GoalSeasonKey, SeasonDates } from '../types';
-import { eachDay, isoWeekday, sleepsUntil } from './dates';
+import { eachDay, sleepsUntil } from './dates';
 import { SeasonStringKey, Translate } from './i18n';
 import { welliesText } from './sinterklaas';
 import { birthdayCountdownText } from './birthdays';
 
-export type CalendarDayKind = 'arrival' | 'shoe' | 'final' | 'journaal' | 'weekend' | 'trip' | 'advent' | 'birthday';
+export type CalendarDayKind = 'arrival' | 'shoe' | 'final' | 'journaal' | 'trip' | 'advent' | 'birthday';
 
 export interface CalendarDay {
   emoji: string;
@@ -52,7 +52,7 @@ const markBirthdays = (spec: SeasonCalendarSpec, birthdays: CalendarBirthday[], 
 /**
  * Sinterklaas: from the national intocht to Pakjesavond (22 cells in 2026), so today is on the
  * grid from day one. When a day means several things the first wins:
- * birthday 🎂 > Pakjesavond 🎁 > shoe night 🥾 > intocht 🚢 (national and Haarlem) > weekend 🍪 > weekday 📺.
+ * birthday 🎂 > Pakjesavond 🎁 > shoe night 🥾 > intocht 🚢 (national and Haarlem) > 📺 (weekends included).
  * Christmas: 1 to 25 December (🎄 on the 25th, ✈️ on London/Eurostar all-day events, 🎅 otherwise).
  */
 export const seasonCalendar = (
@@ -75,7 +75,6 @@ export const seasonCalendar = (
       else if (shoeNights.has(day)) days[day] = { emoji: '🥾', label: t('calShoe'), kind: 'shoe', gold: true };
       else if (day === d.intocht) days[day] = { emoji: '🚢', label: t('calArrival'), kind: 'arrival' };
       else if (day === d.intocht_local) days[day] = { emoji: '🚢', label: t('calHaarlem'), kind: 'arrival' };
-      else if (isoWeekday(day) >= 6) days[day] = { emoji: '🍪', label: t('calWeekend'), kind: 'weekend' };
       else days[day] = { emoji: '📺', label: t('calJournaal'), kind: 'journaal' };
     });
     return markBirthdays({ seasonKey, start, end: d.pakjesavond, days }, birthdays, t);

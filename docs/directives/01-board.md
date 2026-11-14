@@ -64,7 +64,7 @@ Emoji for events and Google items come from the title: playdate 🧒, school/dro
 
 | Season | Grid runs | Emoji |
 |---|---|---|
-| Sinterklaas | national `intocht` → `pakjesavond`, so today is on the grid from day one (22 cells in 2026: 14 Nov – 5 Dec; 🎁 is cell 22) | One emoji per day, first match wins: family birthday 🎂 > Pakjesavond 🎁 > shoe night 🥾 > `intocht` / `intocht_local` 🚢 > Saturday/Sunday 🍪 > weekday 📺. In 2026 with a shoe night on the 15th: 🚢 on the 14th, 🥾 on the 15th. |
+| Sinterklaas | national `intocht` → `pakjesavond`, so today is on the grid from day one (22 cells in 2026: 14 Nov – 5 Dec; 🎁 is cell 22) | One emoji per day, first match wins: family birthday 🎂 > Pakjesavond 🎁 > shoe night 🥾 > `intocht` / `intocht_local` 🚢 > 📺 (weekends are ordinary 📺 days). In 2026 with a shoe night on the 15th: 🚢 on the 14th, 🥾 on the 15th. |
 | Christmas | 1 – 25 December | Family birthday 🎂 > the 25th 🎄 > an all-day Google event whose title contains "London" or "Eurostar" ✈️ > 🎅 |
 
 **Grid:**
