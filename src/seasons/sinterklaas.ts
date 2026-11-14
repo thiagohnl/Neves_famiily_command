@@ -1,9 +1,10 @@
-import { SinterklaasDates } from '../types';
+import { FamilyMember, SinterklaasDates } from '../types';
 import { TodayItem } from '../types/today';
 import { HeroSpec, Season } from './types';
-import { isWithin, sleepsUntil } from './dates';
+import { addDays, isWithin, sleepsUntil } from './dates';
 import { goalChips } from './goals';
-import { Translate, weekdayName } from './i18n';
+import { Translate } from './i18n';
+import { memberColor } from '../constants/memberColors';
 
 export const JOURNAAL_START = '18:00';
 export const JOURNAAL_END = '18:10';
@@ -59,11 +60,60 @@ export const localArrivalText = (sleeps: number, t: Translate): string => {
   return t('sleepsUntilLocalVisit', { n: sleeps });
 };
 
-/** "🥾 Wellies tonight!" on a shoe night, else "🥾 Next wellies: Friday", or null when none are left. */
+/** The wellies chip turns gold from this time on a shoe night. */
+export const WELLIES_GOLD_FROM = 16 * 60;
+/** "Look in your wellies!" shows the morning after until this time. */
+export const WELLIES_MORNING_UNTIL = 9 * 60;
+export const WELLIES_TIME = '19:00';
+export const WELLIES_POINTS = 10;
+export const welliesChoreId = (childId: string, today: string) => `bonus:wellies:${childId}:${today}`;
+
+/**
+ * The next shoe night in child words, no weekday names: "🥾 Wellies tonight!",
+ * "🥾 Wellies tomorrow night!", "🥾 Wellies in 3 sleeps"; null when none are left.
+ * The hero chip and the line under the season calendar both use this.
+ */
 export const welliesText = (today: string, shoeNights: string[], t: Translate): string | null => {
-  if (shoeNights.includes(today)) return t('welliesTonight');
-  const next = [...shoeNights].sort().find(night => night > today);
-  return next ? t('nextWellies', { day: weekdayName(next, t.lang) }) : null;
+  const next = [...shoeNights].sort().find(night => night >= today);
+  if (!next) return null;
+  const n = sleepsUntil(today, next);
+  if (n === 0) return t('welliesTonight');
+  if (n === 1) return t('welliesTomorrow');
+  return t('welliesIn', { n });
+};
+
+/**
+ * On a shoe night every child gets a 19:00 "🥾 Put your wellies out" chore with a
+ * Done button: 10 points, not stored in the chores table (a `bonus:` id handled
+ * by completeChore's season_bonus path, like the birthday gift chores).
+ */
+export const welliesChores = (
+  members: FamilyMember[],
+  today: string,
+  d: SinterklaasDates | undefined,
+  t: Translate,
+  done: string[] = []
+): TodayItem[] => {
+  if (!(d?.shoe_nights ?? []).includes(today)) return [];
+  return members
+    .filter(m => !m.is_parent)
+    .map(child => {
+      const choreId = welliesChoreId(child.id, today);
+      const isDone = done.includes(choreId);
+      return {
+        id: `wellies-${child.id}-${today}`,
+        kind: 'chore' as const,
+        emoji: '🥾',
+        title: t('putShoeOut'),
+        subtitle: `Chore, ${WELLIES_POINTS} points`,
+        start: WELLIES_TIME,
+        memberIds: [child.id],
+        color: memberColor(members, child.id),
+        isPast: isDone,
+        isNow: false,
+        ...(isDone ? {} : { completable: { choreId, points: WELLIES_POINTS, assignedTo: child.id } }),
+      };
+    });
 };
 
 /** Time of today's first calendar entry mentioning the intocht, if any. */
@@ -117,13 +167,22 @@ export const sinterklaas: Season = {
       else if (isWithin(today, d.journaal_start, d.pakjesavond)) subline = t('journaalTonight');
     }
 
-    // Wellies chip: "tonight" on shoe nights (always shown); on other nights the
-    // children's goals replace "Next wellies", which hides when none are left
+    // The morning after a shoe night, until 09:00: go and look
     const shoeNights = d.shoe_nights ?? [];
+    const now = ctx.nowMinutes;
+    if (now !== undefined && now < WELLIES_MORNING_UNTIL && shoeNights.includes(addDays(today, -1))) {
+      subline = t('lookInWellies');
+    }
+
+    // Wellies chip: always shown on a shoe night (gold from 16:00); on other nights the
+    // children's goals replace it, and it hides when no shoe nights are left
+    const shoeTonight = shoeNights.includes(today);
     const wellies = welliesText(today, shoeNights, t);
     const goals = goalChips(ctx.goals, '🍫');
-    const welliesChip = wellies ? [{ label: '', value: wellies }] : [];
-    const secondary = shoeNights.includes(today) || goals.length === 0 ? welliesChip : goals;
+    const welliesChip = wellies
+      ? [{ label: '', value: wellies, ...(shoeTonight && now !== undefined && now >= WELLIES_GOLD_FROM ? { gold: true } : {}) }]
+      : [];
+    const secondary = shoeTonight || goals.length === 0 ? welliesChip : goals;
     return {
       emoji: '🎁',
       headline,
@@ -148,9 +207,7 @@ export const sinterklaas: Season = {
         dedupeKeyword: JOURNAAL_KEYWORD,
       }));
     }
-    if ((d?.shoe_nights ?? []).includes(today)) {
-      items.push(ritual('shoe', today, { emoji: '🥾', title: t('putShoeOut'), start: '19:30' }));
-    }
+    // Shoe nights: the per-child "Put your wellies out" chores come from welliesChores()
     return items;
   },
 };

@@ -9,10 +9,12 @@ interface SeasonCalendarProps {
   today: string;
   /** Days crossed off by tapping (or automatically at midnight). */
   crossed: string[];
-  /** "🥾 Next wellies: Friday" etc., in the season language. */
+  /** "🥾 Wellies tomorrow night!" etc., in the season language. */
   nextLine: string | null;
   /** Tapping today's cell toggles it. */
   onToggleToday: (crossed: boolean) => void;
+  /** The next special cell (🥾, 🎂, 🎁): the only one that bounces. */
+  bounce?: string | null;
 }
 
 // Shown as text, not the emoji variant, so it takes the accent colour
@@ -22,10 +24,11 @@ const GOLD_BG = 'rgba(212, 160, 23, 0.18)';
 
 /**
  * Run-up calendar under the clock: emoji cells from the season's first day in
- * order, 7 per row, no weekday alignment and no dates. Past days are faded and crossed; today has a pulsing accent ring and
- * can be tapped to cross it off.
+ * order, 7 per row, no weekday alignment and no dates. Past days are faded and crossed; today has
+ * a pulsing 4 px accent ring with a 👇 above it and can be tapped to cross it off. Only the next
+ * special cell bounces; nothing else moves.
  */
-export const SeasonCalendar: React.FC<SeasonCalendarProps> = ({ days, today, crossed, nextLine, onToggleToday }) => {
+export const SeasonCalendar: React.FC<SeasonCalendarProps> = ({ days, today, crossed, nextLine, onToggleToday, bounce }) => {
   const crossedSet = new Set(crossed);
   const dayKeys = Object.keys(days).sort();
 
@@ -52,14 +55,31 @@ export const SeasonCalendar: React.FC<SeasonCalendarProps> = ({ days, today, cro
           const style = info.gold ? { backgroundColor: GOLD_BG } : undefined;
 
           if (!isToday) {
+            const label = `${info.label}${showCross ? ', done' : ''}`;
+            if (day === bounce) {
+              // The next special day: a 4 px hop every 3 seconds
+              return (
+                <motion.li
+                  key={day}
+                  className={cellClass}
+                  style={style}
+                  aria-label={`${label}, next`}
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeOut' }}
+                >
+                  {content}
+                </motion.li>
+              );
+            }
             return (
-              <li key={day} className={cellClass} style={style} aria-label={`${info.label}${showCross ? ', done' : ''}`}>
+              <li key={day} className={cellClass} style={style} aria-label={label}>
                 {content}
               </li>
             );
           }
           return (
-            <li key={day}>
+            <li key={day} className="relative">
+              <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[14px] leading-none z-10 pointer-events-none" aria-hidden="true">👇</span>
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.9 }}
@@ -71,7 +91,7 @@ export const SeasonCalendar: React.FC<SeasonCalendarProps> = ({ days, today, cro
               >
                 {content}
                 <motion.span
-                  className="absolute inset-0 rounded-lg border-[3px] border-season-accent pointer-events-none"
+                  className="absolute inset-0 rounded-lg border-4 border-season-accent pointer-events-none"
                   animate={{ scale: [1, 1.12, 1], opacity: [1, 0.55, 1] }}
                   transition={{ duration: 0.8, repeat: Infinity, repeatDelay: 2.2, ease: 'easeInOut' }}
                   aria-hidden="true"

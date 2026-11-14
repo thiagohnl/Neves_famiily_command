@@ -3,7 +3,8 @@
 import { GoalSeasonKey, SeasonDates } from '../types';
 import { eachDay, isoWeekday, sleepsUntil } from './dates';
 import { SeasonStringKey, Translate } from './i18n';
-import { localArrivalText, welliesText } from './sinterklaas';
+import { welliesText } from './sinterklaas';
+import { birthdayCountdownText } from './birthdays';
 
 export type CalendarDayKind = 'arrival' | 'shoe' | 'final' | 'journaal' | 'weekend' | 'trip' | 'advent' | 'birthday';
 
@@ -14,6 +15,8 @@ export interface CalendarDay {
   kind: CalendarDayKind;
   /** Shoe nights and the final day get a faint gold background. */
   gold?: boolean;
+  /** Birthday cells: who (for the caption). */
+  name?: string;
 }
 
 export interface SeasonCalendarSpec {
@@ -41,14 +44,15 @@ export interface CalendarBirthday {
 const markBirthdays = (spec: SeasonCalendarSpec, birthdays: CalendarBirthday[], t: Translate): SeasonCalendarSpec => {
   birthdays.forEach(({ date, name }) => {
     const day = spec.days[date];
-    if (day) spec.days[date] = { emoji: '🎂', label: t('calBirthday', { name }), kind: 'birthday', gold: day.gold };
+    if (day) spec.days[date] = { emoji: '🎂', label: t('calBirthday', { name }), kind: 'birthday', gold: day.gold, name };
   });
   return spec;
 };
 
 /**
- * Sinterklaas: from our town's intocht to Pakjesavond. When a day means several things the first wins:
- * birthday 🎂 > Pakjesavond 🎁 > shoe night 🥾 > intocht 🚢 > weekend 🍪 > weekday 📺.
+ * Sinterklaas: from the national intocht to Pakjesavond (22 cells in 2026), so today is on the
+ * grid from day one. When a day means several things the first wins:
+ * birthday 🎂 > Pakjesavond 🎁 > shoe night 🥾 > intocht 🚢 (national and Haarlem) > weekend 🍪 > weekday 📺.
  * Christmas: 1 to 25 December (🎄 on the 25th, ✈️ on London/Eurostar all-day events, 🎅 otherwise).
  */
 export const seasonCalendar = (
@@ -63,16 +67,18 @@ export const seasonCalendar = (
 
   if (seasonKey === 'sinterklaas') {
     const d = dates.sinterklaas;
-    if (!d?.intocht_local || !d.pakjesavond || d.intocht_local > d.pakjesavond) return null;
+    const start = d?.intocht ?? d?.intocht_local;
+    if (!start || !d?.pakjesavond || start > d.pakjesavond) return null;
     const shoeNights = new Set(d.shoe_nights ?? []);
-    eachDay(d.intocht_local, d.pakjesavond).forEach(day => {
+    eachDay(start, d.pakjesavond).forEach(day => {
       if (day === d.pakjesavond) days[day] = { emoji: '🎁', label: t('calPakjesavond'), kind: 'final', gold: true };
       else if (shoeNights.has(day)) days[day] = { emoji: '🥾', label: t('calShoe'), kind: 'shoe', gold: true };
-      else if (day === d.intocht_local) days[day] = { emoji: '🚢', label: t('calArrival'), kind: 'arrival' };
+      else if (day === d.intocht) days[day] = { emoji: '🚢', label: t('calArrival'), kind: 'arrival' };
+      else if (day === d.intocht_local) days[day] = { emoji: '🚢', label: t('calHaarlem'), kind: 'arrival' };
       else if (isoWeekday(day) >= 6) days[day] = { emoji: '🍪', label: t('calWeekend'), kind: 'weekend' };
       else days[day] = { emoji: '📺', label: t('calJournaal'), kind: 'journaal' };
     });
-    return markBirthdays({ seasonKey, start: d.intocht_local, end: d.pakjesavond, days }, birthdays, t);
+    return markBirthdays({ seasonKey, start, end: d.pakjesavond, days }, birthdays, t);
   }
 
   const start = `${year}-12-01`;
@@ -97,17 +103,21 @@ export const missingCrossedDays = (spec: SeasonCalendarSpec, crossed: string[], 
 };
 
 type Phrase = { today: SeasonStringKey; tomorrow?: SeasonStringKey; later: SeasonStringKey };
-type Speak = (day: string, today: string, t: Translate) => string;
+type Speak = (day: string, today: string, t: Translate, info: CalendarDay) => string;
 
-// The arrival and wellies lines reuse the hero's own wording (localArrivalText,
-// welliesText), so the grid line and the hero never say different things
+// Wellies and birthdays reuse the hero's own wording (welliesText,
+// birthdayCountdownText), so the caption and the hero never say different things
 const SPOKEN: Partial<Record<CalendarDayKind, Speak>> = {
-  arrival: (day, today, t) => {
-    const n = sleepsUntil(today, day);
-    return n === 0 ? localArrivalText(0, t) : `🚢 ${localArrivalText(n, t)}`;
-  },
   shoe: (day, today, t) => welliesText(today, [day], t)!,
+  birthday: (day, today, t, info) => birthdayCountdownText(info.name ?? '', sleepsUntil(today, day), t),
 };
+
+/** Cells that matter to a child: the next one of these bounces. */
+const BOUNCE_KINDS: CalendarDayKind[] = ['shoe', 'birthday', 'final'];
+
+/** The next special cell after today (🥾, 🎂, or 🎁/🎄 if that is nearer): the only cell that bounces. */
+export const bounceDay = (spec: SeasonCalendarSpec, today: string): string | null =>
+  Object.keys(spec.days).sort().find(day => day > today && BOUNCE_KINDS.includes(spec.days[day].kind)) ?? null;
 
 const PHRASES: Record<GoalSeasonKey, Partial<Record<CalendarDayKind, Phrase>>> = {
   sinterklaas: {
@@ -119,17 +129,17 @@ const PHRASES: Record<GoalSeasonKey, Partial<Record<CalendarDayKind, Phrase>>> =
   },
 };
 
-/** The next special day in child words: "🥾 Next wellies: Friday", "🎁 4 more sleeps"... */
+/** The next special day in child words, no weekday names: "🥾 Wellies tomorrow night!", "🎁 4 more sleeps"... */
 export const nextSpecialLine = (spec: SeasonCalendarSpec, today: string, t: Translate): string | null => {
   const phrases = PHRASES[spec.seasonKey];
-  const spoken = spec.seasonKey === 'sinterklaas' ? SPOKEN : {};
+  const spoken = SPOKEN;
   const next = Object.keys(spec.days)
     .sort()
     .find(day => day >= today && (phrases[spec.days[day].kind] || spoken[spec.days[day].kind]));
   if (!next) return null;
   const n = sleepsUntil(today, next);
   const speak = spoken[spec.days[next].kind];
-  if (speak) return speak(next, today, t);
+  if (speak) return speak(next, today, t, spec.days[next]);
   const phrase = phrases[spec.days[next].kind]!;
   if (n === 0) return t(phrase.today);
   if (n === 1 && phrase.tomorrow) return t(phrase.tomorrow);

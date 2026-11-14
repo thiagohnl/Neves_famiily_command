@@ -8,7 +8,7 @@ import { BoardRefreshContext, useBoardRefreshSource } from './hooks/useBoardRefr
 import { SeasonContext, useSeasonSource } from './hooks/useSeason';
 import { useSeasonCrossing } from './hooks/useSeasonCrossing';
 import { useSeasonDatesWriter } from './hooks/useSeasonDatesWriter';
-import { useBirthdayBonuses } from './hooks/useBirthdayBonuses';
+import { useSeasonBonuses } from './hooks/useSeasonBonuses';
 import { isSeasonBonusId } from './seasons/birthdays';
 import { applySeasonPalette } from './seasons/palette';
 import { EditFamilyMembers } from './components/EditFamilyMembers';
@@ -56,7 +56,7 @@ function App() {
   const season = useSeasonSource(settings, familyMembers, boardRefresh.today);
   const writeSeasonDates = useSeasonDatesWriter(settings, updateSettings);
   const seasonCrossing = useSeasonCrossing(settings, writeSeasonDates, season, boardRefresh.today);
-  const birthdayBonuses = useBirthdayBonuses(settings, writeSeasonDates, season, boardRefresh.today);
+  const seasonBonuses = useSeasonBonuses(settings, writeSeasonDates, season, boardRefresh.today);
   const [refreshSpinning, setRefreshSpinning] = useState(false);
 
   // Chores load on mount; every later tick (timer, wake, midnight, button) reloads them quietly
@@ -85,8 +85,8 @@ function App() {
     // During Sinterklaas or Christmas the points also count towards the child's season goal
     const seasonGoal = season.goalSeason ? { seasonKey: season.goalSeason, year: season.year } : undefined;
     const success = await completeChore(choreId, points, assignedTo, seasonGoal);
-    // A birthday gift chore isn't in the chores table; record it so it shows as done
-    if (success && isSeasonBonusId(choreId)) await birthdayBonuses.markDone(choreId);
+    // Generated chores (birthday gifts, wellies) aren't in the chores table; record them so they show as done
+    if (success && isSeasonBonusId(choreId)) await seasonBonuses.markDone(choreId);
     return success;
   };
 

@@ -58,7 +58,10 @@ export const SeasonHero: React.FC<SeasonHeroProps> = ({ hero, size = 'full', onP
       {hero.chips.length > 0 && (
         <div className="flex flex-wrap gap-3">
           {hero.chips.map((chip, i) => (
-            <div key={`${chip.label}|${chip.value}|${i}`} className={`rounded-xl bg-white/15 border-2 border-season-gold text-center ${s.chip}`}>
+            <div
+              key={`${chip.label}|${chip.value}|${i}`}
+              className={`rounded-xl border-2 border-season-gold text-center ${chip.gold ? 'bg-season-gold text-gray-900' : 'bg-white/15'} ${s.chip}`}
+            >
               {chip.label && <div className="text-base font-semibold opacity-90">{chip.label}</div>}
               <div className={`${chip.label ? s.value : 'text-lg'} font-extrabold`}>{chip.value}</div>
             </div>

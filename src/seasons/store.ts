@@ -78,13 +78,13 @@ export const withCrossedDays = (
   return withSeasonEntry(byYear, year, season, { ...current, crossed_days: [...set].sort() });
 };
 
-export const birthdayRecordsDone = (raw: unknown, year: number): string[] =>
-  normalizeSeasonDates(raw)[String(year)]?.birthdays?.done ?? [];
+export const bonusesDone = (raw: unknown, year: number): string[] =>
+  normalizeSeasonDates(raw)[String(year)]?.bonuses?.done ?? [];
 
-/** Record gift chores done and goal bonuses given, so each happens once. */
-export const withBirthdayDone = (raw: unknown, year: number, ids: string[]): SeasonDatesByYear => {
+/** Record generated chores done and goal bonuses given, so each happens once. */
+export const withBonusDone = (raw: unknown, year: number, ids: string[]): SeasonDatesByYear => {
   const byYear = normalizeSeasonDates(raw);
-  const current = byYear[String(year)]?.birthdays ?? {};
+  const current = byYear[String(year)]?.bonuses ?? {};
   const done = [...new Set([...(current.done ?? []), ...ids])].sort();
-  return withSeasonEntry(byYear, year, 'birthdays', { ...current, done });
+  return withSeasonEntry(byYear, year, 'bonuses', { ...current, done });
 };

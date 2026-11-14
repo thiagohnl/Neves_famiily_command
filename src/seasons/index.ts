@@ -1,7 +1,7 @@
 import { AppSettings, FamilyMember, GoalSeasonKey, SeasonDates } from '../types';
 import { TodayItem } from '../types/today';
 import { EMPTY_HERO_CONTEXT, HeroContext, HeroSpec, Season, SeasonPalette } from './types';
-import { sinterklaas } from './sinterklaas';
+import { sinterklaas, welliesChores } from './sinterklaas';
 import { christmas } from './christmas';
 import { birthdayDay, birthdayRunUpChip, birthdaySeason } from './birthdays';
 import { Translate, translatorFor } from './i18n';
@@ -108,9 +108,12 @@ export const resolveSeasonState = (
   if (settings.active_season === 'none') return { ...NO_SEASON, dates, year, goalSeason, translate };
 
   // Birthday rows come on top of whatever season runs (the eve reminder needs no season at all)
-  const birthday = birthdayDay(members, today, translate, dates.birthdays?.done);
+  const done = dates.bonuses?.done;
+  const birthday = birthdayDay(members, today, translate, done);
   const birthdayState = { birthdayIds: birthday.celebrantIds, choresOffFor: birthday.choresOffFor };
-  if (!season) return { ...NO_SEASON, dates, year, goalSeason, translate, rituals: birthday.items, ...birthdayState };
+  // Generated chores: per-child wellies on shoe nights, birthday gifts and rows
+  const extraItems = [...welliesChores(members, today, dates.sinterklaas, translate, done), ...birthday.items];
+  if (!season) return { ...NO_SEASON, dates, year, goalSeason, translate, rituals: extraItems, ...birthdayState };
 
   // A birthday takes the hero and colours, but the journaal still airs that day
   const ritualSeasons = underlying && underlying !== season ? [season, underlying] : [season];
@@ -124,7 +127,7 @@ export const resolveSeasonState = (
     season,
     hero: heroFor(EMPTY_HERO_CONTEXT),
     heroFor,
-    rituals: [...ritualSeasons.flatMap(s => s.rituals(today, dates, translate)), ...birthday.items],
+    rituals: [...ritualSeasons.flatMap(s => s.rituals(today, dates, translate)), ...extraItems],
     palette: season.palette,
     dates,
     year,

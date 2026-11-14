@@ -128,10 +128,8 @@ describe('Sinterklaas hero and rituals', () => {
 
   it('on 9 November has the 18:00 journaal, a shoe night and the shoe chip on Yes', () => {
     const state = resolveSeasonState({ ...auto, language: 'en' }, '2026-11-09', []);
-    expect(state.rituals.map(r => [r.start, r.emoji, r.title])).toEqual([
-      ['18:00', '📺', 'Sinterklaasjournaal'],
-      ['19:30', '🥾', 'Put your wellies out'],
-    ]);
+    // No children passed, so no per-child wellies chores (see the wellies night tests)
+    expect(state.rituals.map(r => [r.start, r.emoji, r.title])).toEqual([['18:00', '📺', 'Sinterklaasjournaal']]);
     expect(state.rituals.every(r => r.kind === 'ritual' && r.memberIds.length === 0)).toBe(true);
     expect(state.rituals[0]).toMatchObject({ end: '18:10', subtitle: 'NPO 3, episode 1 of 27' });
     expect(state.hero?.chips).toContainEqual({ label: '', value: '🥾 Wellies tonight!' });
@@ -141,8 +139,8 @@ describe('Sinterklaas hero and rituals', () => {
   it('has only the journaal on a night without a shoe', () => {
     const state = resolveSeasonState(auto, '2026-11-10', []);
     expect(state.rituals.map(r => r.title)).toEqual(['Sinterklaasjournaal']);
-    // Next shoe night after 10 Nov is Monday 16 Nov
-    expect(state.hero?.chips).toContainEqual({ label: '', value: '🥾 Next wellies: Monday' });
+    // Next shoe night after 10 Nov is 16 Nov: 6 sleeps
+    expect(state.hero?.chips).toContainEqual({ label: '', value: '🥾 Wellies in 6 sleeps' });
   });
 });
 
@@ -297,12 +295,12 @@ describe('Intocht day and season goals in the hero', () => {
   it('hides the wellies chip when no shoe nights are left, and speaks each language', () => {
     expect(resolveSeasonState(auto, '2026-12-01', []).hero?.chips.some(c => c.value.includes('🥾'))).toBe(false);
     const pt = resolveSeasonState({ ...auto, language: 'pt' }, '2026-11-10', []).hero;
-    expect(pt?.chips).toContainEqual({ label: '', value: '🥾 Próxima bota: segunda-feira' });
+    expect(pt?.chips).toContainEqual({ label: '', value: '🥾 Bota em 6 sonos' });
     const nl = resolveSeasonState({ ...auto, language: 'nl' }, '2026-11-16', []).hero;
     expect(nl?.chips).toContainEqual({ label: '', value: '🥾 Schoen zetten vanavond!' });
   });
 
-  it('replaces "Next wellies" with one chip per child, but the wellies chip wins on shoe nights', () => {
+  it('replaces the wellies chip with one chip per child, but the wellies chip wins on shoe nights', () => {
     const goals = [
       { name: 'Charlie', earned: 62, target: 100 },
       { name: 'Isabel', earned: 30, target: 200 },
@@ -331,5 +329,55 @@ describe('Christmas handoff', () => {
     expect(state.goalSeason).toBe('christmas');
     expect(state.palette).toMatchObject({ accent: '#1F5B3F', gold: '#D4A017' });
     expect(state.rituals).toEqual([]);
+  });
+});
+
+describe('wellies night', () => {
+  const kids: FamilyMember[] = [
+    member('p1', 'Thiago', '1985-03-02', true),
+    member('k1', 'Charlie', '2020-06-10'),
+    member('k2', 'Isabel', '2022-03-30'),
+  ];
+  const nights = { active_season: null, season_dates: { '2026': { sinterklaas: { shoe_nights: ['2026-11-21'] } } }, language: 'en' as const };
+  const chipAt = (day: string, nowMinutes?: number) =>
+    resolveSeasonState(nights, day, kids).heroFor({ calendar: [], goals: [], nowMinutes })?.chips.find(c => c.value.includes('🥾'));
+
+  it('chip at 3, 1 and 0 sleeps: no weekday names', () => {
+    expect(chipAt('2026-11-18')?.value).toBe('🥾 Wellies in 3 sleeps');
+    expect(chipAt('2026-11-20')?.value).toBe('🥾 Wellies tomorrow night!');
+    expect(chipAt('2026-11-21')?.value).toBe('🥾 Wellies tonight!');
+    const nl = resolveSeasonState({ ...nights, language: 'nl' }, '2026-11-20', kids).hero?.chips.find(c => c.value.includes('🥾'));
+    expect(nl?.value).toBe('🥾 Schoen zetten morgen!');
+  });
+
+  it('turns the chip gold from 16:00 on the night itself', () => {
+    expect(chipAt('2026-11-21', 15 * 60 + 59)?.gold).toBeUndefined();
+    expect(chipAt('2026-11-21', 16 * 60)).toEqual({ label: '', value: '🥾 Wellies tonight!', gold: true });
+    expect(chipAt('2026-11-20', 17 * 60)?.gold).toBeUndefined();
+  });
+
+  it('gives every child a 19:00 "Put your wellies out" chore worth 10 points', () => {
+    const chores = resolveSeasonState(nights, '2026-11-21', kids).rituals.filter(r => r.emoji === '🥾');
+    expect(chores.map(c => c.memberIds[0])).toEqual(['k1', 'k2']);
+    expect(chores[0]).toMatchObject({
+      kind: 'chore', start: '19:00', title: 'Put your wellies out',
+      completable: { choreId: 'bonus:wellies:k1:2026-11-21', points: 10, assignedTo: 'k1' },
+    });
+    expect(resolveSeasonState(nights, '2026-11-20', kids).rituals.some(r => r.emoji === '🥾')).toBe(false);
+  });
+
+  it('shows a done wellies chore as done', () => {
+    const done = { '2026': { sinterklaas: { shoe_nights: ['2026-11-21'] }, bonuses: { done: ['bonus:wellies:k1:2026-11-21'] } } };
+    const chores = resolveSeasonState({ ...nights, season_dates: done }, '2026-11-21', kids).rituals.filter(r => r.emoji === '🥾');
+    expect(chores[0]).toMatchObject({ isPast: true });
+    expect(chores[0].completable).toBeUndefined();
+    expect(chores[1].completable).toBeDefined();
+  });
+
+  it('says "Look in your wellies!" the next morning until 09:00', () => {
+    const hero = (now: number) => resolveSeasonState(nights, '2026-11-22', kids).heroFor({ calendar: [], goals: [], nowMinutes: now });
+    expect(hero(7 * 60)?.subline).toBe('🥾 Look in your wellies!');
+    expect(hero(8 * 60 + 59)?.subline).toBe('🥾 Look in your wellies!');
+    expect(hero(9 * 60)?.subline).toBe('Sinterklaasjournaal tonight at 18:00');
   });
 });

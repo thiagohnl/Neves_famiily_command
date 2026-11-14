@@ -22,7 +22,7 @@ import { isIsoDate } from '../../seasons/dates';
 import { playHurray } from '../../lib/hurray';
 import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
 import { useSeasonGoals } from '../../hooks/useSeasonGoals';
-import { canCrossDay, nextSpecialLine, seasonCalendar } from '../../seasons/calendar';
+import { bounceDay, canCrossDay, nextSpecialLine, seasonCalendar } from '../../seasons/calendar';
 import { journaalSoonBanner } from '../../seasons/sinterklaas';
 import { HeroContext } from '../../seasons';
 
@@ -109,7 +109,8 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
         const goal = goals.find(g => g.member_id === m.id && g.season_key === goalSeason);
         return goal && goal.target_points > 0 ? [{ name: m.name, earned: goal.earned_points, target: goal.target_points }] : [];
       }),
-  }), [items, familyMembers, goals, goalSeason]);
+    nowMinutes,
+  }), [items, familyMembers, goals, goalSeason, nowMinutes]);
   const hero = useMemo(() => heroFor(heroContext), [heroFor, heroContext]);
   const banner = journaalSoonBanner(items, nowMinutes, translate);
 
@@ -159,6 +160,7 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
             today={today}
             crossed={crossedDays}
             nextLine={nextSpecialLine(calendar, today, translate)}
+            bounce={bounceDay(calendar, today)}
             onToggleToday={handleToggleToday}
           />
         )}

@@ -50,7 +50,7 @@ const joinNames = (names: string[]) =>
 export const celebrantsOn = (members: FamilyMember[], day: string): FamilyMember[] =>
   members.filter(m => isBirthday(m.birth_date, day));
 
-// --- Gift chores and bonuses: ids recorded in season_dates[year].birthdays.done ---
+// --- Gift chores and bonuses: ids recorded in season_dates[year].bonuses.done ---
 
 export const SEASON_BONUS_PREFIX = 'bonus:';
 /** Generated chores (not in the chores table) carry a choreId with this prefix. */
@@ -172,7 +172,7 @@ export interface BirthdayDay {
  * replaced by one row) and a traktatie; everyone gets cake time and a call to
  * Vovó; every other child gets a 50 point "Make <name>'s day" chore. The evening
  * before a child's birthday, parents get a reminder to prepare the traktatie.
- * `done` holds completed gift chore ids (season_dates[year].birthdays.done).
+ * `done` holds completed generated chore ids (season_dates[year].bonuses.done).
  */
 export const birthdayDay = (members: FamilyMember[], today: string, t: Translate, done: string[] = []): BirthdayDay => {
   const items: TodayItem[] = [];

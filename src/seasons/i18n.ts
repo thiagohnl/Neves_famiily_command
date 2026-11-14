@@ -45,8 +45,11 @@ const en = {
   sailsTomorrow: 'Tomorrow he sails into Haarlem',
   comesToHaarlemToday: '🚢 Sinterklaas comes to Haarlem today!',
   welliesTonight: '🥾 Wellies tonight!',
-  nextWellies: '🥾 Next wellies: {day}',
   calWeekend: 'Weekend',
+  welliesTomorrow: '🥾 Wellies tomorrow night!',
+  welliesIn: '🥾 Wellies in {n} sleeps',
+  lookInWellies: '🥾 Look in your wellies!',
+  calHaarlem: 'Sinterklaas in Haarlem',
   calAdvent: 'Advent',
   birthdayAge: '🎂 {name} is {age} today!',
   birthdaySleeps: "🎂 {n} sleeps until {name}'s birthday",
@@ -106,8 +109,11 @@ const pt: Partial<Record<SeasonStringKey, string>> = {
   sailsTomorrow: 'Amanhã ele chega de barco a Haarlem',
   comesToHaarlemToday: '🚢 O Sinterklaas chega hoje a Haarlem!',
   welliesTonight: '🥾 Bota hoje à noite!',
-  nextWellies: '🥾 Próxima bota: {day}',
   calWeekend: 'Fim de semana',
+  welliesTomorrow: '🥾 Bota amanhã!',
+  welliesIn: '🥾 Bota em {n} sonos',
+  lookInWellies: '🥾 Vai ver a tua bota!',
+  calHaarlem: 'O Sinterklaas em Haarlem',
   calAdvent: 'Advento',
   birthdayAge: '🎂 {name} faz {age} anos hoje!',
   birthdaySleeps: '🎂 Faltam {n} noites para o aniversário de {name}',
@@ -165,8 +171,11 @@ const nl: Partial<Record<SeasonStringKey, string>> = {
   sailsTomorrow: 'Morgen vaart hij Haarlem binnen',
   comesToHaarlemToday: '🚢 Sinterklaas komt vandaag naar Haarlem!',
   welliesTonight: '🥾 Schoen zetten vanavond!',
-  nextWellies: '🥾 Volgende schoen: {day}',
   calWeekend: 'Weekend',
+  welliesTomorrow: '🥾 Schoen zetten morgen!',
+  welliesIn: '🥾 Schoen zetten over {n} nachtjes',
+  lookInWellies: '🥾 Kijk in je schoen!',
+  calHaarlem: 'Sinterklaas in Haarlem',
   calAdvent: 'Advent',
   birthdayAge: '🎂 {name} wordt vandaag {age}!',
   birthdaySleeps: '🎂 Nog {n} nachtjes tot {name} jarig is',
@@ -212,9 +221,3 @@ export const translatorFor = (lang: string | undefined): Translate =>
   Object.assign((key: SeasonStringKey, vars?: Vars) => t(key, lang, vars), {
     lang: (lang && lang in dictionaries ? lang : 'en') as Language,
   });
-
-const LOCALES: Record<Language, string> = { en: 'en-GB', pt: 'pt-PT', nl: 'nl-NL' };
-
-/** "Friday", "vrijdag", "sexta-feira" for a YYYY-MM-DD date. */
-export const weekdayName = (iso: string, lang: Language = 'en'): string =>
-  new Intl.DateTimeFormat(LOCALES[lang] ?? 'en-GB', { weekday: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));

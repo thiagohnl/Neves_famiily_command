@@ -64,21 +64,24 @@ Emoji for events and Google items come from the title: playdate 🧒, school/dro
 
 | Season | Grid runs | Emoji |
 |---|---|---|
-| Sinterklaas | `intocht_local` → `pakjesavond` (21 cells in 2026: 15 Nov – 5 Dec; 🚢 is cell 1, 🎁 cell 21) | One emoji per day, first match wins: family birthday 🎂 > Pakjesavond 🎁 > shoe night 🥾 > `intocht_local` 🚢 > Saturday/Sunday 🍪 > weekday 📺 |
+| Sinterklaas | national `intocht` → `pakjesavond`, so today is on the grid from day one (22 cells in 2026: 14 Nov – 5 Dec; 🎁 is cell 22) | One emoji per day, first match wins: family birthday 🎂 > Pakjesavond 🎁 > shoe night 🥾 > `intocht` / `intocht_local` 🚢 > Saturday/Sunday 🍪 > weekday 📺. In 2026 with a shoe night on the 15th: 🚢 on the 14th, 🥾 on the 15th. |
 | Christmas | 1 – 25 December | Family birthday 🎂 > the 25th 🎄 > an all-day Google event whose title contains "London" or "Eurostar" ✈️ > 🎅 |
 
 **Grid:**
-- Cells run from the season's first day in date order, 7 per row, left to right; no weekday alignment and no blank cells. Sinterklaas fills 3 rows, Christmas 4.
+- Cells run from the season's first day in date order, 7 per row, left to right; no weekday alignment and no blank cells. Sinterklaas and Christmas both fill 4 rows.
 - Cells are 44 px with 2 px gaps, emoji at 26 px. No dates or weekday text; each cell has an aria label.
 - **Past days:** emoji at 40 % opacity with a ✖ overlay in the season accent. They always read as done, whether or not they were tapped.
-- **Today:** a 3 px `season.accent` ring that pulses once every 3 seconds (framer-motion: 0.8 s pulse, 2.2 s pause).
+- **Today:** a 4 px `season.accent` ring that pulses once every 3 seconds (framer-motion: 0.8 s pulse, 2.2 s pause), with a small 👇 above the cell.
+- **Next special cell:** only the next 🥾, 🎂 or 🎁 after today (🎄 at Christmas), whichever is nearest, hops 4 px every 3 seconds (`bounceDay`). Nothing else in the grid moves.
 - **Future days:** full opacity.
 - Shoe nights and the final day get a faint gold background (a birthday on such a day keeps it).
 - **On a family birthday** the grid is replaced by one large cell, "🎂 TODAY" (`BirthdayTodayCell`, season language). The next day the grid is back with its crossed days.
 
 **Crossing off:** only today's cell is a button (`whileTap`). A tap toggles it (so a mistaken tap can be undone) and is allowed only for a day in the grid that is today or earlier (`canCrossDay`). Crossed days are stored in `app_settings.season_dates[year][season].crossed_days` through `useSeasonCrossing` (owned by App, which holds the settings) and survive a reload. After the date rolls over, and on load to catch up after the tablet slept, every past day that is not crossed yet is added automatically (`missingCrossedDays`). That runs once per day and season, and only after the saved settings have loaded.
 
-**Next special day:** one 20 px line under the grid, from `nextSpecialLine()` in the season language: "🚢 3 sleeps until he visits our town", "🚢 Tomorrow he sails into Haarlem", "🚢 Sinterklaas comes to Haarlem today!", "🥾 Next wellies: Friday", "🥾 Wellies tonight!", "🎁 4 more sleeps", "🎄 19 more sleeps", "✈️ London in 3 sleeps". The arrival and wellies lines come from the same functions (and so the same i18n keys) as the hero (`localArrivalText`, `welliesText` in `sinterklaas.ts`), so the two never disagree.
+**Next special day:** one 20 px line under the grid, from `nextSpecialLine()` in the season language. It names the next 🥾, 🎂 or 🎁 (🎄 or ✈️ at Christmas) from today on: "🥾 Wellies tonight!", "🥾 Wellies tomorrow night!", "🥾 Wellies in 3 sleeps", "🎂 3 sleeps until Isabel's birthday", "🎁 4 more sleeps", "🎄 19 more sleeps", "✈️ London in 3 sleeps". The arrival is told by the hero, not here. Wellies and birthday lines come from the same functions (and so the same i18n keys) as the hero chips (`welliesText`, `birthdayCountdownText`), so the two never disagree.
+
+**Child-readable time:** no weekday names anywhere on the Board tab. Days ahead are "tonight" (same day), "tomorrow" (1 sleep) or "in N sleeps" (nl "vanavond", "morgen", "over N nachtjes"; pt "hoje à noite", "amanhã", "em N sonos").
 
 **Data:** Christmas ✈️ days use a second `useGoogleCalendar(1 Dec, 25 Dec)` call in `HomeBoard`; outside Christmas that call asks for today only.
 
@@ -87,7 +90,7 @@ Emoji for events and Google items come from the title: playdate 🧒, school/dro
 A child can save up chore points for a reward during a season, e.g. "Chocolate letter C" for Sinterklaas.
 - **Storage:** table `season_goals` (one row per child, season and year).
 - **Earning:** every chore completed while the season runs adds its points (see Completing a chore).
-- **Hero:** shows one chip per child with a target, e.g. "Charlie 🍫 62%" (🎁 for Christmas), capped at 100 %. For Sinterklaas the chips replace "🥾 Next wellies"; on a shoe night "🥾 Wellies tonight!" wins and the goal chips are hidden that evening.
+- **Hero:** shows one chip per child with a target, e.g. "Charlie 🍫 62%" (🎁 for Christmas), capped at 100 %. For Sinterklaas the chips replace the "🥾 Wellies in N sleeps" chip; on a shoe night "🥾 Wellies tonight!" wins and the goal chips are hidden that evening.
 - **Data:** `useSeasonGoals(year)` loads goals through `src/lib/seasonGoalsApi.ts`. It reloads on the refresh `tick` and right after Settings saves goals (a `season-goals-changed` window event).
 - **Settings:** parents set the target and reward label per child, per season, in Settings → Season goals.
 
@@ -108,8 +111,8 @@ Driven by `family_members.birth_date` (members only; no other people). Logic in 
 - **Confetti:** `ConfettiCelebration` with `silent`. Once, silently, at the first render of the day (per device, flag `birthday-confetti-<date>` in `localStorage`).
 - **Hurray (family's choice, the one sound on the board):** every tap of the birthday face or the hero photo, on the birthday only, throws confetti and plays `playHurray` (`src/lib/hurray.ts`): a party horn and ta-da fanfare made with Web Audio, plus a spoken "Hip hip hooray!" / "Hiep hiep hoera!" / "Viva! Parabéns!" where the device has speech synthesis. Sound only ever starts from a tap (the WebView blocks it otherwise).
 - **Rituals:** 16:00 🎂 Cake time; 17:30–18:00 📞 Call Vovó, which pulses the Vovó call pill in the tab bar while current (`pulseContact`, `pulsingContacts`).
-- **Gift chores:** every other child gets "🎁 Make Isabel's day", 50 points, completable. These aren't rows in `chores`: the item's `completable.choreId` is `bonus:birthday:<member>:<child>:<date>`, `useChores.completeChore` takes the season_bonus path (points and season goal only, no chores update), and App records the id in `season_dates[year].birthdays.done` (`useBirthdayBonuses.markDone`) so it shows as done and can't be done twice.
-- **Goal bonus:** the birthday member's running season goal gets `earned_points += 50` once per birthday (`useBirthdayBonuses`; key `goal:<member>:<date>` is recorded before the increment, so it never pays twice).
+- **Gift chores:** every other child gets "🎁 Make Isabel's day", 50 points, completable. These aren't rows in `chores`: the item's `completable.choreId` is `bonus:birthday:<member>:<child>:<date>`, `useChores.completeChore` takes the season_bonus path (points and season goal only, no chores update), and App records the id in `season_dates[year].bonuses.done` (`useSeasonBonuses.markDone`) so it shows as done and can't be done twice.
+- **Goal bonus:** the birthday member's running season goal gets `earned_points += 50` once per birthday (`useSeasonBonuses`; key `goal:<member>:<date>` is recorded before the increment, so it never pays twice).
 
 **On the day, children only:** their own chores are hidden (`choresOffFor` → `buildTodayItems`) and one non-completable all-day row "🎉 Day off for Isabel" shows instead; 08:00 🧁 "Traktatie at school or daycare". The evening before, parents get 20:00 🧁 "Prepare traktatie". Adults get none of these (their chores stay).
 
@@ -212,7 +215,7 @@ During a season (Sinterklaas, Christmas, a family birthday) the Board shows a `S
 | `goals.ts` | `goalPercent`, `goalChips(goals, emoji)` for the hero. |
 | `birthdays.ts` | See "Birthdays" above. `birthdaySeason`, `birthdayDay` (rows, gift chores, `choresOffFor`), `birthdayRunUpChip`, `ageOn`, `nextBirthday`, `birthdayIn` (29 Feb → 28 Feb in non-leap years), `displayName`, `isSeasonBonusId`. Accent is the member's colour from `src/constants/memberColors.ts` (by list position, same as the Schedule tab). |
 | `dates.ts` | `sleepsUntil(today, target)` counts calendar nights via UTC day numbers, so DST changes never add or lose a sleep. `addDays`, `eachDay`, `isoWeekday`. `defaultSinterklaasDates(year)`: see "Sinterklaas" below. |
-| `i18n.ts` | `t(key, lang, vars)` for season strings only (`en`, `pt`, `nl`). `{var}` placeholders; a `<key>_one` entry is used when `vars.n === 1`. Unknown language or missing key falls back to English. `translatorFor(lang)` carries `.lang`; `weekdayName(iso, lang)` gives "Friday" / "vrijdag" / "sexta-feira". |
+| `i18n.ts` | `t(key, lang, vars)` for season strings only (`en`, `pt`, `nl`). `{var}` placeholders; a `<key>_one` entry is used when `vars.n === 1`. Unknown language or missing key falls back to English. `translatorFor(lang)` carries `.lang`. There are deliberately no weekday names (see Child-readable time). |
 | `index.ts` | `getActiveSeason(settings, today, members)`: `active_season = 'none'` → no season; otherwise a family birthday today wins; then `'sinterklaas'`/`'christmas'` → that season regardless of date; otherwise (null or unknown value) Sinterklaas → Christmas by date. `getGoalSeason()` is the same without birthdays (drives the calendar and goals). `resolveSeasonState()` uses this year's dates from `datesForYear` and adds the hero (plus the birthday run-up chip), `heroFor(ctx)`, rituals (the goal season's rituals too on a birthday, so the journaal still airs, plus the birthday rows), palette, `dates`, `year`, `goalSeason`, `translate`, `birthdayIds` and `choresOffFor`. `GOAL_SEASONS` lists Sinterklaas and Christmas. |
 | `palette.ts` | `applySeasonPalette(root, palette)` sets/removes the CSS variables and the `season-active` class on `<html>`, plus `season-confetti` when `palette.pattern === 'confetti'`. |
 
@@ -234,10 +237,11 @@ During a season (Sinterklaas, Christmas, a family birthday) the Board shows a `S
   | After, to Pakjesavond | "N more sleeps until Pakjesavond!" / "It's Pakjesavond tonight!" | "Sinterklaasjournaal tonight at 18:00" |
 
   The arrival sublines come from `localArrivalText`, which the calendar line also uses.
-- **Chips:** Pakjesavond sleeps, then a one-line wellies chip from `welliesText`: "🥾 Wellies tonight!" on a shoe night, else "🥾 Next wellies: <weekday>" (season language), hidden when no shoe nights are left. On nights that aren't shoe nights, when season goals exist, one chip per child replaces it ("Charlie 🍫 62%"). In the 7 days before a family birthday the birthday chip is added.
+- **Chips:** Pakjesavond sleeps, then a one-line wellies chip from `welliesText`: "🥾 Wellies tonight!" (0 sleeps), "🥾 Wellies tomorrow night!" (1), "🥾 Wellies in N sleeps" (2+), hidden when no shoe nights are left. On a shoe night it turns gold from 16:00 (`chip.gold`, needs `nowMinutes` in the hero context, which `HomeBoard` passes). On nights that aren't shoe nights, when season goals exist, one chip per child replaces it ("Charlie 🍫 62%"). In the 7 days before a family birthday the birthday chip is added.
+- **The morning after a shoe night,** until 09:00, the subline reads "🥾 Look in your wellies!".
 - **Rituals:**
   - 📺 Sinterklaasjournaal, 18:00–18:10, every day from `journaal_start` to `pakjesavond` inclusive, subtitle "NPO 3, episode N of M" (`journaalEpisode`; 14 Nov 2026 is episode 6 of 27). It carries `dedupeKeyword: 'sinterklaasjournaal'`.
-  - 🥾 "Put your wellies out" (nl "Zet je schoen", pt "Deixa a tua bota") at 19:30 on `shoe_nights`.
+  - On `shoe_nights`, each child gets a 19:00 chore "🥾 Put your wellies out" (nl "Zet je schoen", pt "Deixa a tua bota") with a Done button, 10 points (`welliesChores`). Like the birthday gifts it is not a row in `chores`: `completable.choreId` is `bonus:wellies:<child>:<date>`, completed through the season_bonus path and recorded in `season_dates[year].bonuses.done`.
 - **Palette:** bg `#F6EFE4`, accent `#9B1B2A`, gold `#D4A017`.
 - **Banner:** `journaalSoonBanner(items, nowMinutes, t)` gives the 17:50–18:00 "starts soon" text.
 
@@ -405,6 +409,6 @@ Recurring activities are expanded: activities with `recurring_days` matching tod
 | `useFollowNowLine` | `src/hooks/useFollowNowLine.ts` | Auto-scroll that keeps `[data-now-line]` in view inside `[data-timeline-scroll]` |
 | `useSeasonGoals` | `src/hooks/useSeasonGoals.ts` | This year's `season_goals` via `src/lib/seasonGoalsApi.ts`; `bump` for an instant update after a completion |
 | `useSeasonCrossing` | `src/hooks/useSeasonCrossing.ts` | Crossed calendar days and `crossDay`, plus the midnight auto-cross (owned by App) |
-| `useBirthdayBonuses` | `src/hooks/useBirthdayBonuses.ts` | Records done gift chores; gives the birthday goal bonus once (owned by App) |
+| `useSeasonBonuses` | `src/hooks/useSeasonBonuses.ts` | Records done generated chores (birthday gifts, wellies); gives the birthday goal bonus once (owned by App) |
 | `useSeasonDatesWriter` | `src/hooks/useSeasonDatesWriter.ts` | Serialised writes to `app_settings.season_dates` |
 | `useWhereabouts` | `src/hooks/useWhereabouts.ts` | Resolved whereabouts per member + `setStatus` (overrides/rules via `src/lib/whereaboutsApi.ts`, realtime on overrides) |

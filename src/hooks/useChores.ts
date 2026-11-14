@@ -63,7 +63,7 @@ export const useChores = () => {
 
   const completeChore = async (choreId: string, points: number, assignedTo: string, seasonGoal?: SeasonGoalRef) => {
     try {
-      // season_bonus path: generated chores (birthday gifts) aren't rows in the chores
+      // season_bonus path: generated chores (birthday gifts, wellies) aren't rows in the chores
       // table; only the points move. App records the completion in app_settings.
       if (!isSeasonBonusId(choreId)) {
         const { error: choreError } = await supabase

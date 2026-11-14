@@ -19,7 +19,7 @@ export interface HeroSpec {
   headline: string;
   subline: string;
   /** A chip with an empty label shows only its value (e.g. the birthday countdown). */
-  chips: { label: string; value: string }[];
+  chips: { label: string; value: string; gold?: boolean }[];
   /** Headline split around one part shown very large (the age on a birthday). */
   headlineBig?: { before: string; big: string; after: string };
   /** Large photo in place of the emoji (the birthday member). */
@@ -32,6 +32,8 @@ export interface HeroContext {
   calendar: { title: string; start: string; allDay?: boolean }[];
   /** This season's points goals, one per child with a target. */
   goals: { name: string; earned: number; target: number }[];
+  /** Minutes since midnight, for time-of-day touches (gold wellies chip from 16:00, the morning after). */
+  nowMinutes?: number;
 }
 
 export const EMPTY_HERO_CONTEXT: HeroContext = { calendar: [], goals: [] };

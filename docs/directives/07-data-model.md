@@ -139,7 +139,7 @@ Stores application configuration. Single-row table with `id = 'default'`.
       "crossed_days": ["2026-11-15", "2026-11-16"]
     },
     "christmas": { "crossed_days": ["2026-12-01"] },
-    "birthdays": { "done": ["bonus:birthday:<isabel>:<charlie>:2026-11-26", "goal:<isabel>:2026-11-26"] }
+    "bonuses": { "done": ["bonus:wellies:<charlie>:2026-11-15", "bonus:birthday:<isabel>:<charlie>:2026-11-26", "goal:<isabel>:2026-11-26"] }
   }
 }
 ```
@@ -152,7 +152,7 @@ Stores application configuration. Single-row table with `id = 'default'`.
 - **Stored values win** over computed ones; empty strings count as unset. Merged by `datesForYear` in `src/seasons/store.ts`.
 - **Editing:** dates and shoe nights in Settings → Seasons.
 - **`crossed_days`:** days crossed off on the Board's season calendar. Written by tapping today's cell, and automatically for past days after midnight.
-- **`birthdays.done`:** birthday gift chores completed (`bonus:birthday:<member>:<child>:<date>`, generated chores that are not rows in `chores`) and goal bonuses given (`goal:<member>:<date>`), so each happens once.
+- **`bonuses.done`:** generated chores completed (birthday gifts `bonus:birthday:<member>:<child>:<date>`, wellies `bonus:wellies:<child>:<date>`; not rows in `chores`) and birthday goal bonuses given (`goal:<member>:<date>`), so each happens once.
 - **Old shape:** the app still reads the old flat shape (`{"sinterklaas": {...}}`) as that Pakjesavond's year (else 2026), in case the migration hasn't run.
 - **Christmas** (6–26 Dec) needs no dates. Birthdays come from `family_members.birth_date`.
 
@@ -178,7 +178,7 @@ interface ChristmasDates {
 interface SeasonDates {
   sinterklaas?: SinterklaasDates;   // also has crossed_days?: string[]
   christmas?: ChristmasDates;
-  birthdays?: { done?: string[] };
+  bonuses?: { done?: string[] };
 }
 
 type SeasonDatesByYear = Record<string, SeasonDates>; // "2026" -> SeasonDates

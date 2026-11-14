@@ -8,7 +8,7 @@ import {
   nextBirthday,
 } from '../../seasons/birthdays';
 import { seasonCalendar } from '../../seasons/calendar';
-import { datesForYear, withBirthdayDone, withCrossedDays } from '../../seasons/store';
+import { datesForYear, withBonusDone, withCrossedDays } from '../../seasons/store';
 import { translatorFor } from '../../seasons/i18n';
 import { buildTodayItems, pulsingContacts, TodaySources } from '../../lib/todayItems';
 import { Chore, FamilyMember, SeasonDatesByYear } from '../../types';
@@ -189,7 +189,7 @@ describe('chore substitution', () => {
     expect(gift.isPast).toBe(true);
     expect(gift.completable).toBeUndefined();
     // Recorded under the year in season_dates
-    expect(datesForYear(withBirthdayDone({}, 2026, done), 2026).birthdays?.done).toEqual(done);
+    expect(datesForYear(withBonusDone({}, 2026, done), 2026).bonuses?.done).toEqual(done);
   });
 
   it('pulses the Vovó pill while the call is on, 17:30 to 18:00', () => {

@@ -65,8 +65,11 @@ export interface ChristmasDates {
   crossed_days?: string[]; // YYYY-MM-DD[], days crossed off on the advent calendar
 }
 
-export interface BirthdayRecords {
-  /** Birthday gift chores completed and goal bonuses given (ids from src/seasons/birthdays.ts). */
+export interface BonusRecords {
+  /**
+   * Generated chores completed (birthday gifts, wellies; `bonus:...` ids) and
+   * birthday goal bonuses given (`goal:...`), so each happens once.
+   */
   done?: string[];
 }
 
@@ -74,7 +77,7 @@ export interface BirthdayRecords {
 export interface SeasonDates {
   sinterklaas?: SinterklaasDates;
   christmas?: ChristmasDates;
-  birthdays?: BirthdayRecords;
+  bonuses?: BonusRecords;
 }
 
 /** `app_settings.season_dates`: keyed by year, e.g. {"2026": {"sinterklaas": {...}}}. */

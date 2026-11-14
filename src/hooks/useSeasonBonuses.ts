@@ -2,19 +2,19 @@ import { useCallback, useEffect, useRef } from 'react';
 import { AppSettings } from '../types';
 import { SeasonState } from '../seasons';
 import { BIRTHDAY_GOAL_BONUS, goalBonusKey } from '../seasons/birthdays';
-import { birthdayRecordsDone, withBirthdayDone } from '../seasons/store';
+import { bonusesDone, withBonusDone } from '../seasons/store';
 import { incrementSeasonGoal } from '../lib/seasonGoalsApi';
 import { WriteSeasonDates } from './useSeasonDatesWriter';
 
 /**
- * Birthday bookkeeping in app_settings.season_dates[year].birthdays.done, owned by
- * App (which holds the settings):
- * - `markDone(choreId)` records a finished "Make <name>'s day" gift chore so it
- *   shows as done and can't be completed twice.
+ * Bookkeeping for generated chores in app_settings.season_dates[year].bonuses.done,
+ * owned by App (which holds the settings):
+ * - `markDone(choreId)` records a finished generated chore (a birthday gift, the
+ *   wellies on a shoe night) so it shows as done and can't be completed twice.
  * - On the day, the birthday member's running season goal gets +50 once. The key
  *   is recorded before the increment, so a retry can never pay out twice.
  */
-export function useBirthdayBonuses(
+export function useSeasonBonuses(
   settings: AppSettings,
   writeSeasonDates: WriteSeasonDates,
   season: SeasonState,
@@ -24,7 +24,7 @@ export function useBirthdayBonuses(
   const attempted = useRef<string | null>(null);
 
   const markDone = useCallback(
-    (choreId: string) => writeSeasonDates(current => withBirthdayDone(current, year, [choreId])),
+    (choreId: string) => writeSeasonDates(current => withBonusDone(current, year, [choreId])),
     [year, writeSeasonDates]
   );
 
@@ -35,11 +35,11 @@ export function useBirthdayBonuses(
     if (attempted.current === attemptKey) return;
     attempted.current = attemptKey;
 
-    const done = birthdayRecordsDone(settings.season_dates, year);
+    const done = bonusesDone(settings.season_dates, year);
     const due = birthdayIds.filter(id => !done.includes(goalBonusKey(id, today)));
     if (due.length === 0) return;
     (async () => {
-      const saved = await writeSeasonDates(current => withBirthdayDone(current, year, due.map(id => goalBonusKey(id, today))));
+      const saved = await writeSeasonDates(current => withBonusDone(current, year, due.map(id => goalBonusKey(id, today))));
       if (!saved) return;
       for (const memberId of due) {
         try {
