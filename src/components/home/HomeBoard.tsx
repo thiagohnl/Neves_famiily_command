@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen } from 'lucide-react';
-import dayjs from 'dayjs';
 import { Chore, FamilyMember } from '../../types';
 import { TodayItem } from '../../types/today';
 import { useTodayItems } from '../../hooks/useTodayItems';
@@ -15,24 +14,44 @@ import { VerseOfTheDayCard } from '../VerseOfTheDayCard';
 import { useWhereabouts } from '../../hooks/useWhereabouts';
 import { WhereaboutsClock } from './WhereaboutsClock';
 import { WhereaboutsSheet } from './WhereaboutsSheet';
-import { PointsLegend } from './PointsLegend';
 import { TodayList } from './TodayList';
+import { SeasonCalendar } from './SeasonCalendar';
+import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
+import { useSeasonGoals } from '../../hooks/useSeasonGoals';
+import { canCrossDay, nextSpecialLine, seasonCalendar } from '../../seasons/calendar';
+import { journaalSoonBanner } from '../../seasons/sinterklaas';
+import { HeroContext } from '../../seasons';
 
 interface HomeBoardProps {
   familyMembers: FamilyMember[];
   chores: Chore[];
   onCompleteChore: (choreId: string, points: number, assignedTo: string) => Promise<boolean>;
   isParentMode: boolean;
+  /** This season's crossed-off calendar days (app_settings, via App). */
+  crossedDays?: string[];
+  onCrossDay?: (day: string, crossed: boolean) => void;
 }
 
 /**
- * Board tab, home layout: whereabouts clock and points on the left, one merged
- * "Today" list on the right. Sized to the viewport so only the list scrolls.
+ * Board tab, home layout: whereabouts clock and, during Sinterklaas or Christmas,
+ * the season calendar on the left; one merged "Today" list on the right. Sized
+ * to the viewport so only the list scrolls.
  */
-export const HomeBoard: React.FC<HomeBoardProps> = ({ familyMembers, chores, onCompleteChore, isParentMode }) => {
+export const HomeBoard: React.FC<HomeBoardProps> = ({
+  familyMembers,
+  chores,
+  onCompleteChore,
+  isParentMode,
+  crossedDays = [],
+  onCrossDay,
+}) => {
   const { today } = useBoardRefresh();
-  const { hero, season } = useSeason();
+  const { heroFor, season, goalSeason, dates, year, translate } = useSeason();
   const { items, dinner, nowMinutes } = useTodayItems(chores, familyMembers);
+  const { goals, bump } = useSeasonGoals(year);
+  // Advent ✈️ days come from all-day Google events across 1-25 December
+  const adventRange = goalSeason === 'christmas' ? [`${year}-12-01`, `${year}-12-25`] : [today, today];
+  const { events: rangeEvents } = useGoogleCalendar(adventRange[0], adventRange[1]);
   const { whereabouts, setStatus } = useWhereabouts(familyMembers, items);
   const [showConfetti, setShowConfetti] = useState(false);
   const [recipeMealId, setRecipeMealId] = useState<string | null>(null);
@@ -42,32 +61,75 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({ familyMembers, chores, onC
   // the list changes: calendar and schedule rows arrive after the first render.
   useFollowNowLine(`${nowMinutes}|${items.length}`, container => container.clientHeight / 3);
 
+  const calendar = useMemo(() => {
+    if (!goalSeason) return null;
+    const allDay = rangeEvents.filter(e => e.allDay).map(e => ({ date: e.displayDate, title: e.title }));
+    return seasonCalendar(goalSeason, dates, year, translate, allDay);
+  }, [goalSeason, dates, year, translate, rangeEvents]);
+
+  // Children's goals for this season, in family order, for the hero chips
+  const heroContext: HeroContext = useMemo(() => ({
+    calendar: items
+      .filter(item => item.kind === 'google' || item.kind === 'event')
+      .map(item => ({ title: item.title, start: item.start, allDay: item.allDay })),
+    goals: familyMembers
+      .filter(m => !m.is_parent)
+      .flatMap(m => {
+        const goal = goals.find(g => g.member_id === m.id && g.season_key === goalSeason);
+        return goal && goal.target_points > 0 ? [{ name: m.name, earned: goal.earned_points, target: goal.target_points }] : [];
+      }),
+  }), [items, familyMembers, goals, goalSeason]);
+  const hero = useMemo(() => heroFor(heroContext), [heroFor, heroContext]);
+  const banner = journaalSoonBanner(items, nowMinutes, translate);
+
   const handleComplete = async (item: TodayItem) => {
     if (!item.completable) return;
     const { choreId, points, assignedTo } = item.completable;
-    if (await onCompleteChore(choreId, points, assignedTo)) setShowConfetti(true);
+    if (await onCompleteChore(choreId, points, assignedTo)) {
+      setShowConfetti(true);
+      if (goalSeason) bump(assignedTo, goalSeason, points);
+    }
+  };
+
+  const handleToggleToday = (crossed: boolean) => {
+    if (calendar && canCrossDay(calendar, today, today)) onCrossDay?.(today, crossed);
   };
 
   return (
-    <div className="font-body flex flex-col md:flex-row gap-6 md:h-[calc(100vh-10rem)] md:min-h-[560px]">
+    // Borrows 24 px of the page padding on md+ so the clock and a four-row calendar fit at 800 px
+    <div className="font-body flex flex-col md:flex-row gap-6 md:h-[calc(100vh-8.5rem)] md:-mt-2 md:-mb-4 md:min-h-[560px]">
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
 
-      {/* Left: whereabouts clock and points */}
-      <section className="hidden md:flex w-[470px] shrink-0 flex-col items-center gap-4 pt-2" aria-label="Family">
+      {/* Left: whereabouts clock, then the season calendar */}
+      <section className="hidden md:flex w-[470px] shrink-0 flex-col items-center gap-2" aria-label="Family">
         <WhereaboutsClock
           familyMembers={familyMembers}
           whereabouts={whereabouts}
           clockEmoji={season?.clockEmoji}
           onSelectMember={setWhereaboutsMemberId}
         />
-        <PointsLegend familyMembers={familyMembers} whereabouts={whereabouts} onSelectMember={setWhereaboutsMemberId} />
+        {calendar && (
+          <SeasonCalendar
+            start={calendar.start}
+            end={calendar.end}
+            days={calendar.days}
+            today={today}
+            crossed={crossedDays}
+            nextLine={nextSpecialLine(calendar, today, translate)}
+            onToggleToday={handleToggleToday}
+          />
+        )}
       </section>
 
       {/* Right: today */}
       <section className="flex-1 min-w-0 min-h-0 flex flex-col gap-3" aria-label="Today">
         <header className="flex items-center gap-4">
           <h2 className="font-display italic text-[40px] leading-none text-gray-900">Today</h2>
-          <span className="text-lg text-gray-500 font-semibold">{dayjs(today).format('dddd D MMMM')}</span>
+          {banner && (
+            <span role="status" className="min-h-[44px] flex items-center rounded-full bg-season-accent text-season-accent-text px-4 text-lg font-bold">
+              {banner}
+            </span>
+          )}
           {dinner && (
             <motion.button
               whileTap={{ scale: 0.95 }}

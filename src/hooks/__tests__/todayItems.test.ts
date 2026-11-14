@@ -219,6 +219,21 @@ describe('buildTodayItems', () => {
     expect(items.map(i => i.title)).toEqual(['Dinner prep']);
   });
 
+  it('skips the journaal ritual when the calendar already has it, and shows it as current at 18:05', () => {
+    const ritual = item({
+      id: 'ritual-sinterklaasjournaal', kind: 'ritual', emoji: '📺', title: 'Sinterklaasjournaal',
+      start: '18:00', end: '18:10', subtitle: 'NPO 3, episode 6 of 27', dedupeKeyword: 'sinterklaasjournaal',
+    });
+    const alone = buildTodayItems(sources({ rituals: [ritual] }), at('18:05'));
+    expect(alone).toEqual([expect.objectContaining({ title: 'Sinterklaasjournaal', isNow: true, isPast: false })]);
+
+    const withCalendar = buildTodayItems(sources({
+      rituals: [ritual],
+      scheduleEvents: [{ id: 's', title: 'SINTERKLAASJOURNAAL kijken', start_time: '18:00:00', date: TODAY } as ScheduleEvent],
+    }), at('18:05'));
+    expect(withCalendar.map(i => i.title)).toEqual(['SINTERKLAASJOURNAAL kijken']);
+  });
+
   it('adds no dinner item when no dinner is planned', () => {
     expect(buildTodayItems(sources(), at('12:00'))).toEqual([]);
   });

@@ -98,6 +98,39 @@ describe('useChores', () => {
     });
   });
 
+  it('completeChore also adds the points to the season goal during a season', async () => {
+    setupLoadData();
+    mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
+    const { result } = renderHook(() => useChores());
+    await vi.waitFor(() => expect(result.current.loading).toBe(false));
+
+    let success: boolean;
+    await act(async () => {
+      success = await result.current.completeChore('c1', 20, 'm1', { seasonKey: 'sinterklaas', year: 2026 });
+    });
+
+    expect(success!).toBe(true);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('increment_points', { member_id: 'm1', points_to_add: 20 });
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('increment_season_goal', {
+      p_member_id: 'm1', p_season_key: 'sinterklaas', p_year: 2026, points_to_add: 20,
+    });
+  });
+
+  it('completeChore still succeeds when the season goal update fails', async () => {
+    setupLoadData();
+    mockSupabase.rpc.mockImplementation((name: string) =>
+      Promise.resolve(name === 'increment_season_goal' ? { data: null, error: new Error('no table') } : { data: null, error: null })
+    );
+    const { result } = renderHook(() => useChores());
+    await vi.waitFor(() => expect(result.current.loading).toBe(false));
+
+    let success: boolean;
+    await act(async () => {
+      success = await result.current.completeChore('c1', 20, 'm1', { seasonKey: 'christmas', year: 2026 });
+    });
+    expect(success!).toBe(true);
+  });
+
   it('completeChore returns false on error', async () => {
     setupLoadData();
 

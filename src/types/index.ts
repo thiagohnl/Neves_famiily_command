@@ -56,10 +56,33 @@ export interface SinterklaasDates {
   pakjesavond?: string;    // YYYY-MM-DD
   shoe_nights?: string[];  // YYYY-MM-DD[]
   journaal_start?: string; // YYYY-MM-DD, first Sinterklaasjournaal
+  crossed_days?: string[]; // YYYY-MM-DD[], days crossed off on the season calendar
 }
 
+export interface ChristmasDates {
+  crossed_days?: string[]; // YYYY-MM-DD[], days crossed off on the advent calendar
+}
+
+/** One year's season dates, as the season engine sees them. */
 export interface SeasonDates {
   sinterklaas?: SinterklaasDates;
+  christmas?: ChristmasDates;
+}
+
+/** `app_settings.season_dates`: keyed by year, e.g. {"2026": {"sinterklaas": {...}}}. */
+export type SeasonDatesByYear = Record<string, SeasonDates>;
+
+/** Seasons that have a calendar and points goals. */
+export type GoalSeasonKey = 'sinterklaas' | 'christmas';
+
+export interface SeasonGoal {
+  id: string;
+  member_id: string;
+  season_key: GoalSeasonKey;
+  year: number;
+  target_points: number;
+  earned_points: number;
+  reward_label: string | null;
 }
 
 export interface AppSettings {
@@ -73,7 +96,7 @@ export interface AppSettings {
   language?: Language;
   /** Manual season override ('sinterklaas', 'christmas', 'none'); null means auto by date. */
   active_season?: string | null;
-  season_dates?: SeasonDates;
+  season_dates?: SeasonDatesByYear;
   parent_pin?: string;
   created_at?: string;
   updated_at?: string;

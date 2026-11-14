@@ -6,6 +6,7 @@ import { useAppSettings } from './hooks/useAppSettings';
 import { useParentAuth } from './hooks/useParentAuth';
 import { BoardRefreshContext, useBoardRefreshSource } from './hooks/useBoardRefresh';
 import { SeasonContext, useSeasonSource } from './hooks/useSeason';
+import { useSeasonCrossing } from './hooks/useSeasonCrossing';
 import { applySeasonPalette } from './seasons/palette';
 import { EditFamilyMembers } from './components/EditFamilyMembers';
 import { SettingsModal } from './components/SettingsModal';
@@ -50,6 +51,7 @@ function App() {
   const [currentTab, setCurrentTab] = useState<TabView>('board');
   const boardRefresh = useBoardRefreshSource();
   const season = useSeasonSource(settings, familyMembers, boardRefresh.today);
+  const seasonCrossing = useSeasonCrossing(settings, updateSettings, season, boardRefresh.today);
   const [refreshSpinning, setRefreshSpinning] = useState(false);
 
   // Chores load on mount; every later tick (timer, wake, midnight, button) reloads them quietly
@@ -75,7 +77,9 @@ function App() {
   }, []);
 
   const handleCompleteChore = async (choreId: string, points: number, assignedTo: string) => {
-    return await completeChore(choreId, points, assignedTo);
+    // During Sinterklaas or Christmas the points also count towards the child's season goal
+    const seasonGoal = season.goalSeason ? { seasonKey: season.goalSeason, year: season.year } : undefined;
+    return await completeChore(choreId, points, assignedTo, seasonGoal);
   };
 
   useEffect(() => {
@@ -175,7 +179,7 @@ function App() {
         <Suspense fallback={<TabSpinner />}>
           {currentTab === 'board' && (settings.board_layout === 'timeline'
             ? <TimelineChoreBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} />
-            : <HomeBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} isParentMode={isParentMode} />)}
+            : <HomeBoard familyMembers={familyMembers} chores={chores} onCompleteChore={handleCompleteChore} isParentMode={isParentMode} crossedDays={seasonCrossing.crossed} onCrossDay={seasonCrossing.crossDay} />)}
           {currentTab === 'chores' && <ChoreManagement familyMembers={familyMembers} chores={chores} isParentMode={isParentMode} onAddChore={addChore} onRefresh={refetch} />}
           {currentTab === 'meals' && <MealPlan familyMembers={familyMembers} isParentMode={isParentMode} />}
           {currentTab === 'schedule' && <Schedule familyMembers={familyMembers} isParentMode={isParentMode} />}
@@ -183,7 +187,7 @@ function App() {
         </Suspense>
       </main>
 
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onUpdateSettings={updateSettings} isParentMode={isParentMode} />
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onUpdateSettings={updateSettings} isParentMode={isParentMode} familyMembers={familyMembers} />
       <ParentAuthModal isOpen={showParentAuth} onClose={() => setShowParentAuth(false)} onAuthenticate={(pin) => { const success = authenticateParent(pin); if (success) setShowParentAuth(false); return success; }} />
     </div>
     </SeasonContext.Provider>

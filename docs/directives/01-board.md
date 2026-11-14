@@ -6,18 +6,22 @@ The Board tab is the main dashboard on the kitchen wall tablet (Fully Kiosk, ~12
 
 | `board_layout` | Component | What it shows |
 |---|---|---|
-| `'home'` (default; also used when the value is missing) | `HomeBoard` | Whereabouts clock + points on the left, one merged "Today" list on the right |
+| `'home'` (default; also used when the value is missing) | `HomeBoard` | Whereabouts clock (plus the season calendar during Sinterklaas/Christmas) on the left, one merged "Today" list on the right |
 | `'timeline'` | `TimelineChoreBoard` | Five summary cards above a per-member chore timeline |
 
 In both, kids tap "Done!" to complete a chore and get the confetti celebration, and during a season (Sinterklaas, Christmas, birthdays) a hero strip and season colours are added. `App.tsx` picks the component; the tabs and `CallFamilyButtons` are identical in both.
 
 ## Home Layout (`board_layout = 'home'`)
 
-**Files:** `src/components/home/` -- `HomeBoard.tsx`, `TodayList.tsx`, `WhereaboutsClock.tsx`, `WhereaboutsSheet.tsx`, `PointsLegend.tsx`, `MemberAvatar.tsx`. Data from `src/hooks/useTodayItems.ts`, merge logic in `src/lib/todayItems.ts` (pure, tested in `src/hooks/__tests__/todayItems.test.ts`).
+**Files:** `src/components/home/` -- `HomeBoard.tsx`, `TodayList.tsx`, `WhereaboutsClock.tsx`, `WhereaboutsSheet.tsx`, `SeasonCalendar.tsx`, `MemberAvatar.tsx`. Data from `src/hooks/useTodayItems.ts`, merge logic in `src/lib/todayItems.ts` (pure, tested in `src/hooks/__tests__/todayItems.test.ts`).
 
-**Layout.** On `md` and up: a row sized `h-[calc(100vh-10rem)]` (header + tab bar + main padding) so the page never scrolls at 1280×800; only the list scrolls. Fonts: Nunito for the body (`font-body`), Lora italic for the "Today" heading (`font-display`), loaded from Google Fonts in `index.html` and applied to this layout only.
-- **Left column** (fixed 470 px, hidden below `md`): the `WhereaboutsClock` (see below) and `PointsLegend` under it -- colour dot, name, ⭐ points and the member's whereabouts ("🧒 Playdate · until 17:30") in a 2×2 grid; tapping a row opens the whereabouts sheet. The leaderboard stays on the Chores tab.
-- **Right column:** header row (serif italic "Today", the date, and a dinner chip on the right that opens `RecipeViewModal` when the dinner has a recipe), the scrolling list, then the bottom strip: `SeasonHero` (`size="strip"`) when a season is active, then `VerseOfTheDayCard variant="strip"` (one truncated line). With a hero showing and a viewport under 760 px tall, the verse hides first.
+**Layout.** On `md` and up: a row sized `h-[calc(100vh-8.5rem)]` with `-mt-2 -mb-4` (it borrows 24 px of the main padding so the 440 px clock and a four-row season calendar fit at 1280×800); the page never scrolls, only the list does. Fonts: Nunito for the body (`font-body`), Lora italic for the "Today" heading (`font-display`), loaded from Google Fonts in `index.html` and applied to this layout only.
+- **Left column** (fixed 470 px, hidden below `md`): the `WhereaboutsClock` (see below) at its full size, and under it the `SeasonCalendar` while Sinterklaas or Christmas runs (see Season calendar). The points legend was removed on 2026-11-14; points show on the chore cards and the leaderboard stays on the Chores tab.
+- **Right column:**
+  - Header row: serif italic "Today" (no date), the journaal banner when due, and a dinner chip on the right that opens `RecipeViewModal` when the dinner has a recipe.
+  - The scrolling list.
+  - Bottom strip: `SeasonHero` (`size="strip"`) when a season is active, then `VerseOfTheDayCard variant="strip"` (one truncated line). With a hero showing and a viewport under 760 px tall, the verse hides first.
+- **Journaal banner:** from 17:50 until 18:00, when today's list has a Sinterklaasjournaal row, a static accent pill "📺 Sinterklaasjournaal starts soon" (season language) appears next to "Today" (`journaalSoonBanner`). No sound, no full-screen animation.
 
 **`useTodayItems(chores, familyMembers)`** returns `{ items, dinner, nowMinutes }`. Chores are passed in from App's `useChores` state (calling `useChores()` again would be a second copy that misses completions); every other source reloads on the board refresh `tick`, and the date always comes from `useBoardRefresh().today`. Sources:
 
@@ -29,7 +33,7 @@ In both, kids tap "Done!" to complete a chore and get the confetti celebration, 
 | `activity` | `useActivities` | Planned for today plus recurring on today's weekday, merged into one item per activity with all its members. No start time → `allDay`. |
 | `fun` | `useFunIdeas` | Ideas with `scheduled_date` = today, `allDay`. |
 | `meal` | `useTodayMeal` | One 16:30 "Dinner prep: <name>" item, only when a dinner is planned and no schedule/Google item today mentions dinner (`dinner`, `jantar`, `avondeten`) -- that entry already covers it. |
-| `ritual` | `useSeason().rituals` | Season rituals, e.g. 18:00 Sinterklaasjournaal. |
+| `ritual` | `useSeason().rituals` | Season rituals, e.g. 18:00-18:10 Sinterklaasjournaal. A ritual with `dedupeKeyword` is dropped when a schedule or Google item today has that word in its title (`dedupeRituals`), so a "Sinterklaasjournaal" calendar entry replaces the built-in row. |
 
 Emoji for events and Google items come from the title: playdate 🧒, school/drop off/pick up 🏫, dentist 🦷, church ⛪, work/office 💼, otherwise 📅 (Portuguese and Dutch keywords included).
 
@@ -42,12 +46,49 @@ Emoji for events and Google items come from the title: playdate 🧒, school/dro
 
 **`TodayList` rows:**
 - **Past:** compact 17 px row, muted grey, green check, time, emoji, the members' faces (22 px, faded -- so two kids' copies of one chore stay distinguishable) and struck-through title.
-- **Current and upcoming:** white card with a left border in the item colour, 64 px time column (18 px bold, "All day" for all-day items), emoji, 22 px bold title, the members' faces, a 16 px subtitle, and for open chores a green 52 px "Done!" button. An item in progress gets a ring in `season.accent`.
+- **Current and upcoming:** white card with a left border in the item colour, 64 px time column (18 px bold, "All day" for all-day items), emoji, 22 px bold title, the members' faces, a 16 px subtitle, and for open chores a bold 20 px "+20" points pill and a green 52 px "Done!" button. An item in progress gets a ring in `season.accent`.
+- **Done animation:** tapping Done calls `onComplete` straight away and the pill floats up and fades (framer-motion, 600 ms, `PILL_FLY_MS`). The card stays up (button hidden) until the animation ends, even if the completion lands first and the row has already turned past.
 - **Feedback:** taps use `whileTap` only; nothing needs hover.
 
-**Completing a chore:** Done → `onCompleteChore` → `useChores.completeChore`, which on success updates the chore (`is_completed`, `completed_at`) and the member's points in local state straight away, then refetches quietly (`loadData(true)`). The row turns muted without a reload; `HomeBoard` shows `ConfettiCelebration`.
+**Completing a chore:** Done → `onCompleteChore` → `useChores.completeChore(choreId, points, assignedTo, seasonGoal?)`.
+- App passes `seasonGoal = { seasonKey, year }` while Sinterklaas or Christmas runs (`useSeason().goalSeason`).
+- On success it updates the chore (`is_completed`, `completed_at`) and the member's points in local state straight away, then refetches quietly (`loadData(true)`).
+- With a `seasonGoal` it also calls the `increment_season_goal` RPC. A failure there (no goal, table missing) is logged and does not fail the completion.
+- The row turns muted without a reload; `HomeBoard` shows `ConfettiCelebration` and bumps the child's goal locally so the hero chip moves at once.
 
 **Auto-scroll:** the list container carries `data-timeline-scroll` and the NOW line `data-now-line`; `useFollowNowLine(nowMinutes, c => c.clientHeight / 3)` keeps the line a third of the way down. The trigger is `nowMinutes|items.length`, so it also re-follows when late-loading sources (calendar, schedule) change the list. It pauses for 2 minutes after a manual scroll. The same hook drives the timeline layout.
+
+## Season Calendar (home layout)
+
+`SeasonCalendar` (`src/components/home/SeasonCalendar.tsx`) sits under the clock while Sinterklaas or Christmas runs (`useSeason().goalSeason`; it stays on a birthday during the season). The date map comes from `seasonCalendar()` in `src/seasons/calendar.ts` (pure, tested in `src/hooks/__tests__/seasonCalendar.test.ts`).
+
+| Season | Grid runs | Emoji |
+|---|---|---|
+| Sinterklaas | `intocht_local` → `pakjesavond` (21 cells in 2026: 15 Nov – 5 Dec) | 🚢 on `intocht_local`, 👟 on each shoe night, 🎁 on Pakjesavond, 📺 on every other day |
+| Christmas | 1 – 25 December | 🎄 on the 25th, ✈️ on any all-day Google event whose title contains "London" or "Eurostar", 🎅 otherwise |
+
+**Grid:**
+- 7 columns, Monday to Sunday, with blank cells before the first day (`leadingBlanks`); rows as needed.
+- Cells are 44 px with 2 px gaps, emoji at 26 px. No dates or weekday text; each cell has an aria label.
+- **Past days:** emoji at 40 % opacity with a ✖ overlay in the season accent. They always read as done, whether or not they were tapped.
+- **Today:** a 3 px `season.accent` ring that pulses once every 3 seconds (framer-motion: 0.8 s pulse, 2.2 s pause).
+- **Future days:** full opacity.
+- Shoe nights and the final day get a faint gold background.
+
+**Crossing off:** only today's cell is a button (`whileTap`). A tap toggles it (so a mistaken tap can be undone) and is allowed only for a day in the grid that is today or earlier (`canCrossDay`). Crossed days are stored in `app_settings.season_dates[year][season].crossed_days` through `useSeasonCrossing` (owned by App, which holds the settings) and survive a reload. After the date rolls over, and on load to catch up after the tablet slept, every past day that is not crossed yet is added automatically (`missingCrossedDays`). That runs once per day and season, and only after the saved settings have loaded.
+
+**Next special day:** one 20 px line under the grid, from `nextSpecialLine()` in the season language: "🚢 Sinterklaas comes today!", "👟 Shoe night: tomorrow", "🎁 4 more sleeps", "🎄 19 more sleeps", "✈️ London in 3 sleeps".
+
+**Data:** Christmas ✈️ days use a second `useGoogleCalendar(1 Dec, 25 Dec)` call in `HomeBoard`; outside Christmas that call asks for today only.
+
+## Season Goals
+
+A child can save up chore points for a reward during a season, e.g. "Chocolate letter C" for Sinterklaas.
+- **Storage:** table `season_goals` (one row per child, season and year).
+- **Earning:** every chore completed while the season runs adds its points (see Completing a chore).
+- **Hero:** shows one chip per child with a target, e.g. "Charlie 🍫 62%" (🎁 for Christmas), capped at 100 %. For Sinterklaas the chips replace "Shoe tonight? No"; on a shoe night the shoe chip wins and the goal chips are hidden that evening.
+- **Data:** `useSeasonGoals(year)` loads goals through `src/lib/seasonGoalsApi.ts`. It reloads on the refresh `tick` and right after Settings saves goals (a `season-goals-changed` window event).
+- **Settings:** parents set the target and reward label per child, per season, in Settings → Season goals.
 
 ## Whereabouts Clock (home layout)
 
@@ -74,7 +115,7 @@ Each result is `{ status, source: 'manual' | 'presence' | 'calendar' | 'default'
   - 5 or more: 16 px faces spread over ±30°.
   - Clusters stay under ±30° so nobody looks as if they point at the neighbouring status.
 - **Motion:** hands rotate with a framer-motion spring and take the short way round.
-- **Tap:** tapping a face (or a legend row) opens the sheet.
+- **Tap:** tapping a face opens the sheet.
 
 **Where the clock gets the family's routine.** Besides taps on the board and phone presence, the clock only knows what's on today's list right now. Put regular places in as calendar entries:
 - **Recurring routine** (school, daycare, office days): add a recurring event on the **Schedule** tab, e.g. "School", Mon–Fri 08:30–15:00, assigned to Charlie. "Daycare" assigned to Isabel works the same way (daycare/creche/kinderopvang/BSO count as School).
@@ -136,16 +177,36 @@ During a season (Sinterklaas, Christmas, a family birthday) the Board shows a `S
 
 | File | Role |
 |---|---|
-| `types.ts` | `Season { key, name, emoji, isActive(today, dates), palette, hero?(today, dates, t), rituals(today, dates, t), clockEmoji? }`, `HeroSpec { emoji, headline, subline, chips[] }`, `SeasonPalette { bg, surface, accent, accentText, button, gold }` |
-| `sinterklaas.ts` | Active `journaal_start` → `pakjesavond` inclusive. Headline counts sleeps to `intocht` while before it, "arrives today" on the day, then sleeps to `pakjesavond`. Subline: sleeps until `intocht_local`, else "Sinterklaasjournaal tonight at 18:00". Chips: Pakjesavond sleeps, "Shoe tonight?" Yes/No. Rituals: 18:00 📺 Sinterklaasjournaal every day of the season, 19:30 👟 "Put your shoe out" on `shoe_nights`. Palette bg `#F6EFE4`, accent `#9B1B2A`, gold `#D4A017`. |
-| `christmas.ts` | Active 6–26 December every year, counts sleeps to the 25th ("Merry Christmas!" from the 25th). Green/gold palette, no rituals yet. |
+| `types.ts` | `Season { key, name, emoji, isActive(today, dates), palette, hero?(today, dates, t, ctx), rituals(today, dates, t), clockEmoji? }`, `HeroSpec { emoji, headline, subline, chips[] }`, `SeasonPalette { bg, surface, accent, accentText, button, gold }`, `HeroContext { calendar, goals }` (today's schedule/Google entries and the children's goals; `EMPTY_HERO_CONTEXT` when unknown) |
+| `sinterklaas.ts` | See "Sinterklaas" below. |
+| `christmas.ts` | Active 6–26 December every year (from the day after Pakjesavond). Headline "🎄 N sleeps until Christmas" ("Merry Christmas!" from the 25th). Palette green `#1F5B3F`, gold `#D4A017`, cream background `#FBF6EA`. Chips: the children's goals (🎁) when set. No rituals yet. Goals use `season_key 'christmas'` with their own targets. |
+| `store.ts` | `season_dates` by year: `normalizeSeasonDates` (also accepts the old flat shape and moves it under its Pakjesavond's year, else 2026), `datesForYear(raw, year)` (computed defaults + stored values; stored wins, empty strings count as unset), `withSeasonEntry`, `crossedDays`, `withCrossedDays`. |
+| `calendar.ts` | Season calendar under the clock: `seasonCalendar`, `canCrossDay`, `missingCrossedDays`, `leadingBlanks`, `nextSpecialLine`. |
+| `goals.ts` | `goalPercent`, `goalChips(goals, emoji)` for the hero. |
 | `birthdays.ts` | `birthdaySeason(members, today)` builds a one-day season when a member's `birth_date` anniversary is today (29 Feb → 28 Feb in non-leap years). Hero "Happy birthday Charlie!" 🎂 with "Charlie is 7 today"; several birthdays on one day are joined ("Charlie & Isabel"). Accent is the member's colour from `src/constants/memberColors.ts` (members have no colour column; colour is by list position, same as the Schedule tab). |
-| `dates.ts` | `sleepsUntil(today, target)` counts calendar nights via UTC day numbers, so DST changes never add or lose a sleep. |
+| `dates.ts` | `sleepsUntil(today, target)` counts calendar nights via UTC day numbers, so DST changes never add or lose a sleep. `addDays`, `eachDay`, `isoWeekday`. `defaultSinterklaasDates(year)`: see "Sinterklaas" below. |
 | `i18n.ts` | `t(key, lang, vars)` for season strings only (`en`, `pt`, `nl`). `{var}` placeholders; a `<key>_one` entry is used when `vars.n === 1`. Unknown language or missing key falls back to English. |
-| `index.ts` | `getActiveSeason(settings, today, members)`: `active_season = 'none'` → no season; `'sinterklaas'`/`'christmas'` → that season regardless of date; otherwise (null or unknown value) the first active of birthday → Sinterklaas → Christmas. `resolveSeasonState()` adds the hero, rituals and palette. |
+| `index.ts` | `getActiveSeason(settings, today, members)`: `active_season = 'none'` → no season; `'sinterklaas'`/`'christmas'` → that season regardless of date; otherwise (null or unknown value) the first active of birthday → Sinterklaas → Christmas. `getGoalSeason()` is the same without birthdays (drives the calendar and goals). `resolveSeasonState()` uses this year's dates from `datesForYear` and adds the hero, `heroFor(ctx)`, rituals (the goal season's rituals too on a birthday, so the journaal still airs), palette, `dates`, `year`, `goalSeason` and `translate`. `GOAL_SEASONS` lists Sinterklaas and Christmas. |
 | `palette.ts` | `applySeasonPalette(root, palette)` sets/removes the CSS variables and the `season-active` class on `<html>`. |
 
-**Hook:** `useSeason()` returns `{ season, hero, rituals, palette }` from `SeasonContext`. `App.tsx` owns the single source (`useSeasonSource(settings, familyMembers, boardRefresh.today)`) because it already holds the settings and members -- a second `useAppSettings()` instance would be separate state that never sees a Settings save. The season re-resolves when `today` rolls over at midnight.
+**Sinterklaas** (`sinterklaas.ts`):
+- **Dates:** each year's dates are computed by `defaultSinterklaasDates(year)` unless a parent set them for that year:
+  - `intocht`: the first Saturday strictly after 11 November (16 Nov 2024, 15 Nov 2025, 14 Nov 2026, 13 Nov 2027).
+  - `intocht_local`: the Sunday after it (Haarlem).
+  - `journaal_start`: the Monday before the intocht.
+  - `pakjesavond`: 5 December.
+  - `shoe_nights`: none; parents choose them.
+- **Active:** `journaal_start` → `pakjesavond` inclusive.
+- **Headline:** counts sleeps to `intocht` while before it, "arrives today" on the day, then sleeps to `pakjesavond`. On `intocht_local` the headline is "🚢 Today Sinterklaas sails into Haarlem!" and the subline gives the time of today's first schedule/Google entry with "intocht" in its title ("Intocht at 12:30"), else "Intocht around 13:00".
+- **Subline otherwise:** sleeps until `intocht_local`, then "Sinterklaasjournaal tonight at 18:00".
+- **Chips:** Pakjesavond sleeps, then "Shoe tonight?". On nights that aren't shoe nights, when season goals exist, one chip per child replaces "Shoe tonight? No" ("Charlie 🍫 62%").
+- **Rituals:**
+  - 📺 Sinterklaasjournaal, 18:00–18:10, every day from `journaal_start` to `pakjesavond` inclusive, subtitle "NPO 3, episode N of M" (`journaalEpisode`; 14 Nov 2026 is episode 6 of 27). It carries `dedupeKeyword: 'sinterklaasjournaal'`.
+  - 👟 "Put your shoe out" at 19:30 on `shoe_nights`.
+- **Palette:** bg `#F6EFE4`, accent `#9B1B2A`, gold `#D4A017`.
+- **Banner:** `journaalSoonBanner(items, nowMinutes, t)` gives the 17:50–18:00 "starts soon" text.
+
+**Hook:** `useSeason()` returns the `SeasonState` from `SeasonContext`: `{ season, hero, heroFor, rituals, palette, dates, year, goalSeason, translate }`. `HomeBoard` renders `heroFor({ calendar, goals })`. The timeline layout uses `hero`, which has no calendar or goals. `App.tsx` owns the single source (`useSeasonSource(settings, familyMembers, boardRefresh.today)`) because it already holds the settings and members -- a second `useAppSettings()` instance would be separate state that never sees a Settings save. The season re-resolves when `today` rolls over at midnight.
 
 **Palette:** applied in the same `useEffect` in `App.tsx` that handles `settings.theme`. Variables `--season-bg`, `--season-surface`, `--season-accent`, `--season-accent-text`, `--season-button`, `--season-gold`; Tailwind colours `season.bg`, `season.surface`, `season.accent`, `season.accent-text`, `season.button`, `season.gold` (e.g. `bg-season-accent`). Fallback values (light theme: white, purple `#8B5CF6`, amber) are defined on `:root` in `index.css`. The page background is tinted only while `season-active` is set and the theme is not dark.
 
@@ -153,7 +214,17 @@ During a season (Sinterklaas, Christmas, a family birthday) the Board shows a `S
 
 **Rituals:** returned as `TodayItem` rows (`kind: 'ritual'`, `memberIds: []`, type in `src/types/today.ts`) and shown in the home layout's Today list. The timeline layout does not show them.
 
-**Settings** (`SettingsModal`, parent mode only -- the section is hidden and not saved otherwise): Season language select, Season select (Auto, Sinterklaas, Christmas, None), date inputs for `journaal_start`, `intocht`, `intocht_local`, `pakjesavond`, and a shoe-night list (add a date, tap a chip to remove it). Saved with the rest of the form through `updateSettings`; empty dates are dropped from the JSON. The modal reloads its form from `settings` every time it opens so a save never writes stale defaults over the season dates. Dates are per year: a parent re-enters them each autumn.
+**Settings** (`SettingsModal`, parent mode only -- these sections are hidden and not saved otherwise):
+- **Seasons:**
+  - Season language select and Season select (Auto, Sinterklaas, Christmas, None).
+  - Date inputs for this year's `journaal_start`, `intocht`, `intocht_local`, `pakjesavond`. The computed default is the input's placeholder and is also written under each field ("Default: Sat 14 Nov (in use)"), because Android date inputs don't show placeholders.
+  - "Reset to defaults" clears the four dates so the computed ones apply. Shoe nights and crossed days are kept.
+  - Shoe-night list: add a date, tap a chip to remove it.
+- **Saving the season fields:** saved with the rest of the form through `updateSettings` into `season_dates[<this year>].sinterklaas` (`withSeasonEntry`). Other years, Christmas and `crossed_days` are kept; empty dates are dropped.
+- **Season goals:** a Sinterklaas / Christmas switch (defaults to the running season) and, per child, a reward label (placeholder "Chocolate letter C") and a target.
+  - Shows what the child has earned so far.
+  - Saved on Save: a target above 0 upserts the goal (`earned_points` untouched); clearing a target deletes it.
+- **Reloading:** the modal reloads its form from `settings` (and this year's goals) every time it opens, so a save never writes stale values back.
 
 ### Timeline View
 
@@ -272,7 +343,7 @@ Recurring activities are expanded: activities with `recurring_days` matching tod
 | `TodayList` | `src/components/home/TodayList.tsx` | Merged Today rows with NOW line and Done buttons |
 | `WhereaboutsClock` | `src/components/home/WhereaboutsClock.tsx` | SVG whereabouts clock, one hand per member |
 | `WhereaboutsSheet` | `src/components/home/WhereaboutsSheet.tsx` | Pick a status for a member (manual override) |
-| `PointsLegend` | `src/components/home/PointsLegend.tsx` | Colour dot, name, points and whereabouts per member |
+| `SeasonCalendar` | `src/components/home/SeasonCalendar.tsx` | Season calendar under the clock (Sinterklaas / advent) |
 | `MemberAvatar` | `src/components/home/MemberAvatar.tsx` | Photo, or emoji on the member colour |
 | `TimelineChoreBoard` | `src/components/TimelineChoreBoard.tsx` | Board page, timeline layout |
 | `ConfettiCelebration` | `src/components/ConfettiCelebration.tsx` | Confetti on chore completion |
@@ -296,4 +367,6 @@ Recurring activities are expanded: activities with `recurring_days` matching tod
 | `useGoogleCalendar` | `src/hooks/useGoogleCalendar.ts` | Read-only Google Calendar events from `/api/calendar` |
 | `useNow` | `src/hooks/useNow.ts` | Current time, ticking every minute |
 | `useFollowNowLine` | `src/hooks/useFollowNowLine.ts` | Auto-scroll that keeps `[data-now-line]` in view inside `[data-timeline-scroll]` |
+| `useSeasonGoals` | `src/hooks/useSeasonGoals.ts` | This year's `season_goals` via `src/lib/seasonGoalsApi.ts`; `bump` for an instant update after a completion |
+| `useSeasonCrossing` | `src/hooks/useSeasonCrossing.ts` | Crossed calendar days and `crossDay`, plus the midnight auto-cross (owned by App) |
 | `useWhereabouts` | `src/hooks/useWhereabouts.ts` | Resolved whereabouts per member + `setStatus` (overrides/rules via `src/lib/whereaboutsApi.ts`, realtime on overrides) |

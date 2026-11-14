@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Upload, Palette, Mail, Type, Lock, Sparkles, LayoutGrid } from 'lucide-react';
-import { AppSettings, Language, SinterklaasDates } from '../types';
+import { X, Save, Palette, Mail, Type, Lock, Sparkles, LayoutGrid, Trophy, RotateCcw } from 'lucide-react';
+import dayjs from 'dayjs';
+import { AppSettings, FamilyMember, GoalSeasonKey, Language, SeasonGoal, SinterklaasDates } from '../types';
 import { LANGUAGES } from '../seasons/i18n';
-import { SEASON_OVERRIDES } from '../seasons';
+import { GOAL_SEASONS, SEASON_OVERRIDES } from '../seasons';
+import { defaultSinterklaasDates } from '../seasons/dates';
+import { normalizeSeasonDates, withSeasonEntry } from '../seasons/store';
+import { listSeasonGoals, saveSeasonGoals, SeasonGoalInput } from '../lib/seasonGoalsApi';
+import { useBoardRefresh } from '../hooks/useBoardRefresh';
+import { useSeason } from '../hooks/useSeason';
 import toast from 'react-hot-toast';
 import { useFocusTrap } from '../utils/useFocusTrap';
 
@@ -12,8 +18,10 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: AppSettings;
   onUpdateSettings: (updates: Partial<AppSettings>) => Promise<boolean>;
-  /** The Seasons section is only shown, and only saved, in parent mode. */
+  /** The Seasons and Season goals sections are only shown, and only saved, in parent mode. */
   isParentMode?: boolean;
+  /** Children get a Season goals row each. */
+  familyMembers?: FamilyMember[];
 }
 
 const BOARD_LAYOUTS: { value: 'home' | 'timeline'; label: string; emoji: string; hint: string }[] = [
@@ -21,29 +29,46 @@ const BOARD_LAYOUTS: { value: 'home' | 'timeline'; label: string; emoji: string;
   { value: 'timeline', label: 'Timeline', emoji: '🗓️', hint: 'Summary cards and per-person timeline' },
 ];
 
-const SINTERKLAAS_DATE_FIELDS: { key: Exclude<keyof SinterklaasDates, 'shoe_nights'>; label: string }[] = [
+type DateField = Exclude<keyof SinterklaasDates, 'shoe_nights' | 'crossed_days'>;
+
+const SINTERKLAAS_DATE_FIELDS: { key: DateField; label: string }[] = [
   { key: 'journaal_start', label: 'Sinterklaasjournaal starts' },
   { key: 'intocht', label: 'Intocht (national arrival)' },
   { key: 'intocht_local', label: 'Arrival in our town' },
   { key: 'pakjesavond', label: 'Pakjesavond' },
 ];
 
-const seasonFormFrom = (settings: AppSettings) => ({
-  language: settings.language ?? 'en',
-  override: settings.active_season ?? 'auto',
-  sinterklaas: {
-    ...settings.season_dates?.sinterklaas,
-    shoe_nights: [...(settings.season_dates?.sinterklaas?.shoe_nights ?? [])],
-  } as SinterklaasDates,
-});
+/** Only what a parent stored for the year; an empty field means the computed default. */
+const seasonFormFrom = (settings: AppSettings, year: number) => {
+  const stored = normalizeSeasonDates(settings.season_dates)[String(year)]?.sinterklaas;
+  return {
+    language: settings.language ?? 'en',
+    override: settings.active_season ?? 'auto',
+    sinterklaas: { ...stored, shoe_nights: [...(stored?.shoe_nights ?? [])] } as SinterklaasDates,
+  };
+};
+
+type GoalForm = Record<string, { target: string; reward: string }>;
+const goalKey = (season: GoalSeasonKey, memberId: string) => `${season}|${memberId}`;
+
+const goalFormFrom = (goals: SeasonGoal[]): GoalForm =>
+  Object.fromEntries(
+    goals.map(g => [goalKey(g.season_key, g.member_id), { target: String(g.target_points), reward: g.reward_label ?? '' }])
+  );
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   settings,
   onUpdateSettings,
-  isParentMode = false
+  isParentMode = false,
+  familyMembers = []
 }) => {
+  const { today } = useBoardRefresh();
+  const { goalSeason: runningSeason } = useSeason();
+  const year = Number(today.slice(0, 4));
+  const defaults = defaultSinterklaasDates(year);
+  const children = familyMembers.filter(m => !m.is_parent);
   const [formData, setFormData] = useState({
     title: settings.title,
     theme: settings.theme,
@@ -53,7 +78,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [showPinField, setShowPinField] = useState(false);
-  const [seasonForm, setSeasonForm] = useState(() => seasonFormFrom(settings));
+  const [seasonForm, setSeasonForm] = useState(() => seasonFormFrom(settings, year));
+  const [savedGoals, setSavedGoals] = useState<SeasonGoal[]>([]);
+  const [goalForm, setGoalForm] = useState<GoalForm>({});
+  const [goalSeason, setGoalSeason] = useState<GoalSeasonKey>('sinterklaas');
   const [newShoeNight, setNewShoeNight] = useState('');
   const focusTrapRef = useFocusTrap<HTMLDivElement>(isOpen);
 
@@ -76,9 +104,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       ) as SinterklaasDates;
       updates.language = seasonForm.language;
       updates.active_season = seasonForm.override === 'auto' ? null : seasonForm.override;
-      updates.season_dates = { ...settings.season_dates, sinterklaas };
+      // Keyed by year; other years, Christmas and crossed-off days are kept
+      updates.season_dates = withSeasonEntry(settings.season_dates, year, 'sinterklaas', sinterklaas);
     }
-    const success = await onUpdateSettings(updates);
+    let success = await onUpdateSettings(updates);
+    if (success && isParentMode) {
+      try {
+        await saveGoals();
+      } catch (err) {
+        console.error('Error saving season goals:', err);
+        success = false;
+      }
+    }
 
     if (success) {
       toast.success('Settings saved successfully!', {
@@ -97,6 +134,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsSaving(false);
   };
 
+  // Children with a target get a goal; clearing a target deletes the saved goal
+  const saveGoals = async () => {
+    const upserts: SeasonGoalInput[] = [];
+    const remove: Pick<SeasonGoalInput, 'member_id' | 'season_key' | 'year'>[] = [];
+    GOAL_SEASONS.forEach(({ key: season_key }) => {
+      children.forEach(child => {
+        const entry = goalForm[goalKey(season_key, child.id)];
+        const target = Number(entry?.target);
+        const saved = savedGoals.find(g => g.member_id === child.id && g.season_key === season_key);
+        if (entry && Number.isFinite(target) && target > 0) {
+          upserts.push({ member_id: child.id, season_key, year, target_points: Math.round(target), reward_label: entry.reward.trim() || null });
+        } else if (saved) {
+          remove.push({ member_id: child.id, season_key, year });
+        }
+      });
+    });
+    if (upserts.length > 0 || remove.length > 0) await saveSeasonGoals(upserts, remove);
+  };
+
+  const setGoalField = (memberId: string, field: 'target' | 'reward', value: string) =>
+    setGoalForm(f => {
+      const key = goalKey(goalSeason, memberId);
+      return { ...f, [key]: { ...(f[key] ?? { target: '', reward: '' }), [field]: value } };
+    });
+
+  const resetSinterklaasDefaults = () =>
+    setSeasonForm(f => {
+      const sinterklaas = { ...f.sinterklaas };
+      SINTERKLAAS_DATE_FIELDS.forEach(field => delete sinterklaas[field.key]);
+      return { ...f, sinterklaas };
+    });
+
   const handleReset = () => {
     setFormData({
       title: settings.title,
@@ -106,8 +175,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     });
     setNewPin('');
     setShowPinField(false);
-    setSeasonForm(seasonFormFrom(settings));
+    setSeasonForm(seasonFormFrom(settings, year));
     setNewShoeNight('');
+    setGoalForm(goalFormFrom(savedGoals));
   };
 
   // Settings load after this modal mounts, so pick up the saved values each time it opens.
@@ -117,7 +187,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const setSinterklaasDate = (key: keyof SinterklaasDates, value: string) =>
+  // Season goals live in their own table; load this year's when a parent opens Settings
+  useEffect(() => {
+    if (!isOpen || !isParentMode) return;
+    setGoalSeason(runningSeason ?? 'sinterklaas');
+    let cancelled = false;
+    listSeasonGoals(year)
+      .then(goals => {
+        if (cancelled) return;
+        setSavedGoals(goals);
+        setGoalForm(goalFormFrom(goals));
+      })
+      .catch(err => console.error('Error loading season goals:', err));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, isParentMode, year]);
+
+  const setSinterklaasDate = (key: DateField, value: string) =>
     setSeasonForm(f => ({ ...f, sinterklaas: { ...f.sinterklaas, [key]: value } }));
 
   const addShoeNight = () => {
@@ -199,7 +287,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       key={theme.value}
                       type="button"
-                      onClick={() => setFormData({ ...formData, theme: theme.value as any })}
+                      onClick={() => setFormData({ ...formData, theme: theme.value as AppSettings['theme'] })}
                       className={`p-4 rounded-xl border-2 transition-all ${
                         formData.theme === theme.value
                           ? 'border-purple-500 bg-purple-50'
@@ -307,7 +395,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
 
                     <div>
-                      <p className="text-sm font-semibold text-gray-700 mb-2">🎁 Sinterklaas dates (this year)</p>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <p className="text-sm font-semibold text-gray-700">🎁 Sinterklaas dates ({year})</p>
+                        <button
+                          type="button"
+                          onClick={resetSinterklaasDefaults}
+                          className="min-h-[44px] px-3 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 flex items-center gap-1"
+                        >
+                          <RotateCcw size={14} /> Reset to defaults
+                        </button>
+                      </div>
                       <div className="grid grid-cols-2 gap-3">
                         {SINTERKLAAS_DATE_FIELDS.map(field => (
                           <div key={field.key}>
@@ -316,9 +413,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               id={`sk-${field.key}`}
                               type="date"
                               value={seasonForm.sinterklaas[field.key] ?? ''}
+                              placeholder={defaults[field.key]}
                               onChange={(e) => setSinterklaasDate(field.key, e.target.value)}
                               className={inputClass}
                             />
+                            {/* Android date inputs don't show a placeholder, so spell the default out */}
+                            <p className="text-xs text-gray-500 mt-1">
+                              Default: {dayjs(defaults[field.key]).format('ddd D MMM')}
+                              {seasonForm.sinterklaas[field.key] ? '' : ' (in use)'}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -363,6 +466,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
                     Auto shows Sinterklaas from the journaal start to Pakjesavond, Christmas from 6 to 26 December, and birthdays on the day.
+                    Empty dates use the usual calendar for the year.
+                  </p>
+                </div>
+              )}
+
+              {/* Season goals (parent only) */}
+              {isParentMode && children.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <Trophy size={16} />
+                    Season goals ({year})
+                  </label>
+                  <div className="grid grid-cols-2 gap-2 mb-3" role="tablist">
+                    {GOAL_SEASONS.map(option => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={goalSeason === option.key}
+                        onClick={() => setGoalSeason(option.key)}
+                        className={`min-h-[44px] rounded-xl border-2 font-medium ${
+                          goalSeason === option.key ? 'border-purple-500 bg-purple-50 text-gray-800' : 'border-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {option.emoji} {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="space-y-3">
+                    {children.map(child => {
+                      const entry = goalForm[goalKey(goalSeason, child.id)] ?? { target: '', reward: '' };
+                      const saved = savedGoals.find(g => g.member_id === child.id && g.season_key === goalSeason);
+                      return (
+                        <div key={child.id} className="grid grid-cols-[1fr_96px] gap-2 items-end">
+                          <div>
+                            <label htmlFor={`goal-reward-${child.id}`} className="block text-xs text-gray-500 mb-1">
+                              {child.avatar} {child.name}: reward{saved ? ` (earned ${saved.earned_points})` : ''}
+                            </label>
+                            <input
+                              id={`goal-reward-${child.id}`}
+                              type="text"
+                              value={entry.reward}
+                              onChange={(e) => setGoalField(child.id, 'reward', e.target.value)}
+                              placeholder={goalSeason === 'sinterklaas' ? `Chocolate letter ${child.name.charAt(0).toUpperCase()}` : 'Christmas treat'}
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor={`goal-target-${child.id}`} className="block text-xs text-gray-500 mb-1">Target ⭐</label>
+                            <input
+                              id={`goal-target-${child.id}`}
+                              type="number"
+                              inputMode="numeric"
+                              min={0}
+                              value={entry.target}
+                              onChange={(e) => setGoalField(child.id, 'target', e.target.value)}
+                              placeholder="200"
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Chore points earned while the season runs count towards the goal, and the board shows each child's progress. Clear a target to remove the goal.
                   </p>
                 </div>
               )}

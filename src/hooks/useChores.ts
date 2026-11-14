@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Chore, FamilyMember } from '../types';
+import { Chore, FamilyMember, GoalSeasonKey } from '../types';
+import { incrementSeasonGoal } from '../lib/seasonGoalsApi';
+
+/** The season whose points goal a completion also counts towards. */
+export interface SeasonGoalRef {
+  seasonKey: GoalSeasonKey;
+  year: number;
+}
 
 export const useChores = () => {
   const [chores, setChores] = useState<Chore[]>([]);
@@ -53,7 +60,7 @@ export const useChores = () => {
     }
   };
 
-  const completeChore = async (choreId: string, points: number, assignedTo: string) => {
+  const completeChore = async (choreId: string, points: number, assignedTo: string, seasonGoal?: SeasonGoalRef) => {
     try {
       const { error: choreError } = await supabase
         .from('chores')
@@ -67,6 +74,15 @@ export const useChores = () => {
       });
       if (rpcError) throw rpcError;
 
+      if (seasonGoal) {
+        // The chore and points are already saved; a missing goal must not undo the completion
+        try {
+          await incrementSeasonGoal(assignedTo, seasonGoal.seasonKey, seasonGoal.year, points);
+        } catch (goalError) {
+          console.error('Error updating season goal:', goalError);
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('Error completing chore:', error);
@@ -74,9 +90,9 @@ export const useChores = () => {
     }
   };
 
-  const handleCompleteChore = async (choreId: string, points: number, assignedTo: string) => {
+  const handleCompleteChore = async (choreId: string, points: number, assignedTo: string, seasonGoal?: SeasonGoalRef) => {
     try {
-      const success = await completeChore(choreId, points, assignedTo);
+      const success = await completeChore(choreId, points, assignedTo, seasonGoal);
       if (success) {
         // Show the completion right away, then sync quietly (no loading state)
         const completedAt = new Date().toISOString();
@@ -98,7 +114,7 @@ export const useChores = () => {
         throw new Error('Chore name and assignee are required');
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('chores')
         .insert({
           name: choreData.name,
@@ -115,9 +131,9 @@ export const useChores = () => {
       
       await loadData();
       return true;
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error adding chore:', err);
-      setError(err.message || 'Failed to add chore');
+      setError(err instanceof Error && err.message ? err.message : 'Failed to add chore');
       return false;
     }
   };

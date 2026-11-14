@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TodayList } from '../../components/home/TodayList';
 import { FamilyMember } from '../../types';
@@ -33,6 +33,22 @@ describe('TodayList', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Done!/ }));
     expect(onComplete).toHaveBeenCalledWith(items[1]);
+  });
+
+  it('shows chore points as a +N pill that flies off on Done, keeping the card up meanwhile', async () => {
+    const onComplete = vi.fn();
+    const { rerender } = render(<TodayList items={items} familyMembers={members} nowMinutes={16 * 60 + 10} onComplete={onComplete} />);
+    expect(screen.getByText('+10')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Done!/ }));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /Done!/ })).not.toBeInTheDocument();
+
+    // The completion lands before the animation ends: the card stays until it has flown
+    const done = { ...items[1], isPast: true, completable: undefined };
+    rerender(<TodayList items={[items[0], done]} familyMembers={members} nowMinutes={16 * 60 + 10} onComplete={onComplete} />);
+    expect(screen.getByText('Sweep')).not.toHaveClass('line-through');
+    await waitFor(() => expect(screen.getByText('Sweep')).toHaveClass('line-through'), { timeout: 2000 });
   });
 
   it('says so when nothing is planned', () => {

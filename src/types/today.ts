@@ -14,4 +14,6 @@ export interface TodayItem {
   isPast: boolean;
   isNow: boolean;
   completable?: { choreId: string; points: number; assignedTo: string };
+  /** Rituals only: skipped when a calendar entry today has this in its title (case-insensitive). */
+  dedupeKeyword?: string;
 }

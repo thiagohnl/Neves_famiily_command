@@ -115,25 +115,42 @@ Stores application configuration. Single-row table with `id = 'default'`.
 | `board_layout` | text | No | `'home'` | Board tab layout: `'home'` or `'timeline'`; check `IN ('timeline','home')`. The app treats a missing value as `'home'`. |
 | `language` | text | No | `'en'` | Language of season strings; check `IN ('en','pt','nl')`. The rest of the app stays English. |
 | `active_season` | text | Yes | `null` | Manual season override: `'sinterklaas'`, `'christmas'` or `'none'` (force no season). `null` = automatic by date. No DB check, so new season keys need no migration; unknown values are treated as auto. |
-| `season_dates` | jsonb | No | `'{}'` | Per-year season dates (see below) |
+| `season_dates` | jsonb | No | `'{}'` | Season dates keyed by year, plus crossed-off calendar days (see below) |
 | `created_at` | timestamptz | No | `now()` | Creation timestamp |
 | `updated_at` | timestamptz | Yes | `null` | Last update timestamp |
 
-**Migrations:** `20261020120000_add_season_settings.sql` adds `language`, `active_season`, `season_dates`; `20261021120000_add_board_layout_setting.sql` adds `board_layout`.
+**Migrations:**
+- `20261020120000_add_season_settings.sql` adds `language`, `active_season`, `season_dates`.
+- `20261021120000_add_board_layout_setting.sql` adds `board_layout`.
+- `20261114120000_season_dates_by_year.sql` moves the old flat `season_dates` under the `"2026"` key and corrects the hand-entered 2026 dates (`journaal_start` 2026-11-12 → 2026-11-09, `intocht` 2026-11-13 → 2026-11-14).
 
-**`season_dates` shape** (all dates `YYYY-MM-DD`, every key optional; edited in Settings → Seasons):
+**`season_dates` shape** (keyed by year; all dates `YYYY-MM-DD`, every key optional):
 ```json
 {
-  "sinterklaas": {
-    "intocht": "2026-11-14",
-    "intocht_local": "2026-11-15",
-    "pakjesavond": "2026-12-05",
-    "shoe_nights": ["2026-11-09", "2026-11-16", "2026-11-23", "2026-11-30"],
-    "journaal_start": "2026-11-09"
+  "2026": {
+    "sinterklaas": {
+      "intocht": "2026-11-14",
+      "intocht_local": "2026-11-15",
+      "pakjesavond": "2026-12-05",
+      "journaal_start": "2026-11-09",
+      "shoe_nights": ["2026-11-16", "2026-11-23", "2026-11-30"],
+      "crossed_days": ["2026-11-15", "2026-11-16"]
+    },
+    "christmas": { "crossed_days": ["2026-12-01"] }
   }
 }
 ```
-Sinterklaas only runs automatically when both `journaal_start` and `pakjesavond` are set. Christmas (6–26 Dec) needs no dates. Birthdays come from `family_members.birth_date`.
+- **Missing Sinterklaas dates are computed** by `defaultSinterklaasDates(year)` in `src/seasons/dates.ts`, so the season runs every year without setup:
+  - `intocht`: the first Saturday strictly after 11 November.
+  - `intocht_local`: the Sunday after it.
+  - `journaal_start`: the Monday before the intocht.
+  - `pakjesavond`: 5 December.
+  - `shoe_nights`: `[]`.
+- **Stored values win** over computed ones; empty strings count as unset. Merged by `datesForYear` in `src/seasons/store.ts`.
+- **Editing:** dates and shoe nights in Settings → Seasons.
+- **`crossed_days`:** days crossed off on the Board's season calendar. Written by tapping today's cell, and automatically for past days after midnight.
+- **Old shape:** the app still reads the old flat shape (`{"sinterklaas": {...}}`) as that Pakjesavond's year (else 2026), in case the migration hasn't run.
+- **Christmas** (6–26 Dec) needs no dates. Birthdays come from `family_members.birth_date`.
 
 **Used by:** `useAppSettings` (via `dataGateway`), `useParentAuth`, `SettingsModal`, `useSeasonSource` (season engine in `src/seasons/`).
 
@@ -149,9 +166,17 @@ interface SinterklaasDates {
   journaal_start?: string;
 }
 
-interface SeasonDates {
-  sinterklaas?: SinterklaasDates;
+interface ChristmasDates {
+  crossed_days?: string[];
 }
+
+/** One year's dates, as the season engine sees them. */
+interface SeasonDates {
+  sinterklaas?: SinterklaasDates;   // also has crossed_days?: string[]
+  christmas?: ChristmasDates;
+}
+
+type SeasonDatesByYear = Record<string, SeasonDates>; // "2026" -> SeasonDates
 
 interface AppSettings {
   id: string;
@@ -161,7 +186,7 @@ interface AppSettings {
   board_layout?: 'timeline' | 'home';
   language?: Language;
   active_season?: string | null;
-  season_dates?: SeasonDates;
+  season_dates?: SeasonDatesByYear;
   parent_pin?: string;
   created_at?: string;
   updated_at?: string;
@@ -439,6 +464,43 @@ interface WhereaboutsRule {
 
 ---
 
+### season_goals
+
+A child's points goal for a season, e.g. a chocolate letter for Sinterklaas. Chore points completed while the season runs are added to it. Migration `20261114120100_create_season_goals_table.sql`.
+
+| Column | Type | Nullable | Default | Description |
+|---|---|---|---|---|
+| `id` | uuid | No | `gen_random_uuid()` | Primary key |
+| `member_id` | uuid | No | -- | FK to `family_members.id` (`ON DELETE CASCADE`), indexed |
+| `season_key` | text | No | -- | `'sinterklaas'` or `'christmas'` (no DB check) |
+| `year` | int | No | -- | Season year |
+| `target_points` | int | No | -- | Points needed for the reward (check `>= 0`) |
+| `earned_points` | int | No | `0` | Points earned so far this season |
+| `reward_label` | text | Yes | `null` | e.g. "Chocolate letter C" |
+| `created_at` | timestamptz | No | `now()` | Creation timestamp |
+
+- Unique `(member_id, season_key, year)`; Settings upserts on it (only `target_points` and `reward_label`, so `earned_points` survives a target change) and deletes a goal whose target is cleared.
+- RLS enabled with a permissive policy for `anon, authenticated`.
+
+**Used by:** `src/lib/seasonGoalsApi.ts` (`listSeasonGoals`, `saveSeasonGoals`, `incrementSeasonGoal`), `useSeasonGoals` (Board hero chips), `SettingsModal` (Season goals), `useChores.completeChore`.
+
+**TypeScript interface:**
+```ts
+type GoalSeasonKey = 'sinterklaas' | 'christmas';
+
+interface SeasonGoal {
+  id: string;
+  member_id: string;
+  season_key: GoalSeasonKey;
+  year: number;
+  target_points: number;
+  earned_points: number;
+  reward_label: string | null;
+}
+```
+
+---
+
 ## RPC Functions
 
 ### increment_points
@@ -463,6 +525,16 @@ await supabase.rpc('increment_points', {
 - `ChoreManagement.completeChore` -- when completing a chore from the Chores tab.
 
 **Behaviour:** Atomically adds `points_to_add` to the `points` column of the `family_members` row with the given `member_id`. Using an RPC ensures the increment is atomic and avoids race conditions from concurrent completions.
+
+### increment_season_goal
+
+Same pattern for season goals (migration `20261114120100_create_season_goals_table.sql`).
+
+```sql
+increment_season_goal(p_member_id uuid, p_season_key text, p_year integer, points_to_add integer)
+```
+
+Adds `points_to_add` to `earned_points` of the matching `season_goals` row; does nothing when the member has no goal. Called by `useChores.completeChore` (through `incrementSeasonGoal`) when App passes the running season (Sinterklaas or Christmas). A failure is logged and does not fail the chore completion.
 
 ---
 
@@ -495,6 +567,7 @@ family_members
   |-- (1:N) --> planned_activities.member_id
   |-- (1:N) --> whereabouts_overrides.member_id (cascade delete)
   |-- (1:N) --> whereabouts_rules.member_id (nullable, cascade delete)
+  |-- (1:N) --> season_goals.member_id (cascade delete)
 
 saved_meals
   |-- (1:N) --> meal_plans.meal_id

@@ -232,6 +232,15 @@ export interface TodaySources {
 
 const DINNER_IN_TITLE = /dinner|jantar|avondeten/i;
 
+/** Drop rituals the calendar already covers, e.g. a "Sinterklaasjournaal" Google event. */
+export const dedupeRituals = (rituals: TodayItem[], calendar: TodayItem[]): TodayItem[] => {
+  const titles = calendar.map(item => item.title.toLowerCase());
+  return rituals.filter(ritual => {
+    const keyword = ritual.dedupeKeyword?.toLowerCase();
+    return !keyword || !titles.some(title => title.includes(keyword));
+  });
+};
+
 export const buildTodayItems = (src: TodaySources, nowMinutes: number): TodayItem[] => {
   const calendar = [
     ...scheduleItems(src.scheduleEvents),
@@ -246,7 +255,7 @@ export const buildTodayItems = (src: TodaySources, nowMinutes: number): TodayIte
       ...activityItems(src.activities, src.plannedActivities, src.today),
       ...funItems(src.funIdeas, src.today),
       ...(dinnerOnCalendar ? [] : dinnerItem(src.dinner)),
-      ...src.rituals,
+      ...dedupeRituals(src.rituals, calendar),
     ],
     nowMinutes
   );
