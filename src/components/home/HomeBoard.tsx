@@ -24,7 +24,7 @@ import { useGoogleCalendar } from '../../hooks/useGoogleCalendar';
 import { useSeasonGoals } from '../../hooks/useSeasonGoals';
 import { bounceDay, canCrossDay, nextSpecialLine, seasonCalendar } from '../../seasons/calendar';
 import { journaalSoonBanner } from '../../seasons/sinterklaas';
-import { HeroContext } from '../../seasons';
+import { HeroContext, illustrationFor } from '../../seasons';
 
 interface HomeBoardProps {
   familyMembers: FamilyMember[];
@@ -193,7 +193,7 @@ export const HomeBoard: React.FC<HomeBoardProps> = ({
           <TodayList items={items} familyMembers={familyMembers} nowMinutes={nowMinutes} onComplete={handleComplete} />
         </div>
 
-        {hero && <SeasonHero hero={hero} size="strip" onPhotoTap={hurray} />}
+        {hero && <SeasonHero hero={hero} size="strip" onPhotoTap={hurray} illustration={illustrationFor(season, nowMinutes)} />}
         {/* When the hero is showing and the screen is short, the verse gives way first; the tall birthday hero always wins */}
         <VerseOfTheDayCard variant="strip" className={hero?.photo ? 'hidden' : hero ? '[@media(max-height:760px)]:hidden' : ''} />
       </section>

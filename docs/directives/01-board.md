@@ -251,6 +251,10 @@ During a season (Sinterklaas, Christmas, a family birthday) the Board shows a `S
 
 **SeasonHero** (`src/components/SeasonHero.tsx`): rendered only when `hero` is not null. Accent background with gold border, emoji (or the birthday photo, tappable for confetti), headline (with an optional 96 px part, `headlineBig`), optional subline, chips on the right (a chip with an empty label is one line). Single opacity fade-in, no other animation. Sizes: `full` (64 px emoji, 44 px headline; timeline layout) and `strip` (48 px emoji, 28 px headline; home layout's narrower right column).
 
+**Illustration** (`Season.illustration`, optional): a list of pictures `{ src, fallbackSrc?, alt, width, height, tone: 'day' | 'night' }`; `illustrationFor(season, nowMinutes)` picks the one for the time of day (day 07:00–19:00, else night; falls back to any). Both boards pass it to `SeasonHero`, which draws a `<picture>` (WebP `<source>`, PNG `<img>` fallback) absolutely positioned at the card's right end: 170 px tall, width from the aspect ratio, bottom on the card's bottom padding. The card gets a minimum height of 170 − 20 + its padding, so on a short card the picture stands 20 px above the top edge (a card whose text wraps taller keeps the picture on the bottom, inside the red). The card gains 20 px top margin for that overflow, and its right padding grows by the picture width + 24 px so the headline and chips never run under it. Under 1100 px viewport width the picture, padding and margin all drop away. No animation.
+- **Sinterklaas:** "Sinterklaas feeding Ozosnel an apple", `/seasons/sinterklaas-ozosnel-360.webp` (PNG fallback alongside, in `public/seasons/`), 446 × 360, the same picture for day and night for now.
+- **Christmas and birthdays:** none yet; the slot stays empty.
+
 **Rituals:** returned as `TodayItem` rows (`kind: 'ritual'`, `memberIds: []`, type in `src/types/today.ts`) and shown in the home layout's Today list. The timeline layout does not show them.
 
 **Settings** (`SettingsModal`, parent mode only -- these sections are hidden and not saved otherwise):

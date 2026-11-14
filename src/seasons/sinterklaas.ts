@@ -139,6 +139,15 @@ export const sinterklaas: Season = {
     button: '#9B1B2A',
     gold: '#D4A017',
   },
+  // Same picture day and night for now
+  illustration: (['day', 'night'] as const).map(tone => ({
+    src: '/seasons/sinterklaas-ozosnel-360.webp',
+    fallbackSrc: '/seasons/sinterklaas-ozosnel-360.png',
+    alt: 'Sinterklaas feeding Ozosnel an apple',
+    width: 446,
+    height: 360,
+    tone,
+  })),
   hero: (today, dates, t, ctx): HeroSpec | null => {
     const d = dates.sinterklaas;
     if (!d?.pakjesavond) return null;

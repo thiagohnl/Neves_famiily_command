@@ -14,6 +14,20 @@ export interface SeasonPalette {
   pattern?: 'confetti';
 }
 
+export type IllustrationTone = 'day' | 'night';
+
+/** A picture standing at the right end of the hero card. */
+export interface SeasonIllustration {
+  src: string;
+  /** Shown where the browser can't decode `src` (PNG next to a WebP). */
+  fallbackSrc?: string;
+  alt: string;
+  /** Intrinsic size in px; the hero shows it 170 px tall. */
+  width: number;
+  height: number;
+  tone: IllustrationTone;
+}
+
 export interface HeroSpec {
   emoji: string;
   headline: string;
@@ -48,4 +62,6 @@ export interface Season {
   hero?: (today: string, dates: SeasonDates, t: Translate, ctx: HeroContext) => HeroSpec | null;
   rituals: (today: string, dates: SeasonDates, t: Translate) => TodayItem[];
   clockEmoji?: Partial<Record<Whereabout, string>>;
+  /** Hero pictures, one per tone; `illustrationFor` picks by time of day. None yet for Christmas and birthdays. */
+  illustration?: SeasonIllustration[];
 }

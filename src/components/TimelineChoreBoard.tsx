@@ -11,6 +11,7 @@ import { useActivities } from '../hooks/useActivities';
 import { useFunIdeas } from '../hooks/useFunIdeas';
 import { useBoardRefresh } from '../hooks/useBoardRefresh';
 import { useSeason } from '../hooks/useSeason';
+import { illustrationFor } from '../seasons';
 import { useNow } from '../hooks/useNow';
 import { useFollowNowLine } from '../hooks/useFollowNowLine';
 import { SeasonHero } from './SeasonHero';
@@ -88,7 +89,8 @@ export const TimelineChoreBoard: React.FC<{
   useFollowNowLine(currentTime, () => 160);
 
   const { today: todayDate } = useBoardRefresh();
-  const { hero } = useSeason();
+  const { hero, season } = useSeason();
+  const illustration = illustrationFor(season, currentTime.getHours() * 60 + currentTime.getMinutes());
   const todayName = dayjs(todayDate).format('dddd');
 
   const funIdeasToday = React.useMemo(() => {
@@ -122,7 +124,7 @@ export const TimelineChoreBoard: React.FC<{
   return (
     <div className="space-y-6">
       <ConfettiCelebration show={showConfetti} onComplete={() => setShowConfetti(false)} />
-      {hero && <SeasonHero hero={hero} />}
+      {hero && <SeasonHero hero={hero} illustration={illustration} />}
       {/* Summary Cards */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl p-4 shadow-sm border border-gray-200 z-10 flex flex-col"><div className="flex items-center gap-3 mb-2"><Trophy className="text-purple-600" /><h3 className="font-bold text-purple-800 text-lg">Family Progress</h3></div><div className="flex-1 flex flex-col justify-center"><div className="grid grid-cols-2 gap-2">{familyMembers.map(m => (<div key={m.id} className="text-center"><img src={m.photo_url || `https://ui-avatars.com/api/?name=${m.name.charAt(0)}&background=random`} alt={m.name} className="w-10 h-10 rounded-full mx-auto object-cover" /><p className="text-xs font-bold">{m.name}</p><p className="text-xs">{m.points} pts</p></div>))}</div></div></div>

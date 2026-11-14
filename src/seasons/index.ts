@@ -1,13 +1,24 @@
 import { AppSettings, FamilyMember, GoalSeasonKey, SeasonDates } from '../types';
 import { TodayItem } from '../types/today';
-import { EMPTY_HERO_CONTEXT, HeroContext, HeroSpec, Season, SeasonPalette } from './types';
+import { EMPTY_HERO_CONTEXT, HeroContext, HeroSpec, IllustrationTone, Season, SeasonIllustration, SeasonPalette } from './types';
 import { sinterklaas, welliesChores } from './sinterklaas';
 import { christmas } from './christmas';
 import { birthdayDay, birthdayRunUpChip, birthdaySeason } from './birthdays';
 import { Translate, translatorFor } from './i18n';
 import { datesForYear } from './store';
 
-export type { Season, HeroSpec, SeasonPalette, HeroContext } from './types';
+export type { Season, HeroSpec, SeasonPalette, HeroContext, SeasonIllustration, IllustrationTone } from './types';
+
+/** Day from 07:00 until 19:00, night otherwise. */
+export const toneAt = (nowMinutes: number): IllustrationTone =>
+  nowMinutes >= 7 * 60 && nowMinutes < 19 * 60 ? 'day' : 'night';
+
+/** The season's hero picture for this time of day (any tone if none matches), or null. */
+export const illustrationFor = (season: Season | null, nowMinutes: number): SeasonIllustration | null => {
+  const list = season?.illustration ?? [];
+  const tone = toneAt(nowMinutes);
+  return list.find(i => i.tone === tone) ?? list[0] ?? null;
+};
 export { t } from './i18n';
 
 /** Date-driven seasons, in priority order (a birthday is checked before these). */
